@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.schema import (  # noqa: E402
     DATA_DIR,
     CATALOGUE_ROOT,
+    require_catalogue,
     Vocab,
     load_domain,
     load_domains,
@@ -93,6 +94,10 @@ def known_keys() -> set[str]:
     all ~80 papers that have not migrated yet.
     """
     keys: set[str] = set()
+
+    # A missing catalogue would silently skip every unmigrated page and
+    # re-propose ~80 papers we already have. Fail instead.
+    require_catalogue()
 
     for domain in load_domains():
         slug = domain["slug"]

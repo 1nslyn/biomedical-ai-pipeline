@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.schema import (  # noqa: E402
     DATA_DIR,
     CATALOGUE_ROOT,
+    require_catalogue,
     Vocab,
     load_domain,
     load_domains,
@@ -493,6 +494,11 @@ def main() -> int:
             print(f"{stem}.pdf")
             print(f"{stem}_supp.pdf")
         return 0
+
+    # Only the rendering paths need the catalogue; --pdf-names above does not.
+    # Without this a missing checkout reports every page as "out of date",
+    # which reads like stale data rather than a wrong path.
+    require_catalogue()
 
     rendered: dict[Path, str] = {}
     counts: dict[str, int] = {}
