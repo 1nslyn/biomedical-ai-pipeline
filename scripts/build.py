@@ -12,6 +12,7 @@ the README. That way nobody is blocked on a big-bang conversion.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -28,9 +29,17 @@ from lib.schema import (  # noqa: E402
     pdf_stem,
 )
 
+# The catalogue holds only markdown, so every path a generated page points at
+# has to be an absolute URL into this repository -- a relative link would 404.
+PIPELINE_URL = os.environ.get(
+    "PIPELINE_URL", "https://github.com/leoyin1127/biomedical-ai-pipeline"
+).rstrip("/")
+PIPELINE_BLOB = f"{PIPELINE_URL}/blob/main"
+
 GENERATED_BANNER = (
     "<!-- GENERATED FILE - DO NOT EDIT BY HAND -->\n"
-    "<!-- Source: {source} | Regenerate: python scripts/build.py -->\n"
+    "<!-- Generated from {source} in " + PIPELINE_URL + " -->\n"
+    "<!-- Edits made here are overwritten by the next build. -->\n"
 )
 
 # Compact labels for the index table's data column.
@@ -376,8 +385,11 @@ def render_domain_page(domain: dict, entries: list[dict], vocab: Vocab) -> str:
     out.append("---")
     out.append("")
     out.append(
-        f"Add a paper by editing [`data/{slug}.yaml`](data/{slug}.yaml) and running "
-        "`python scripts/build.py`. See [CONTRIBUTING.md](CONTRIBUTING.md)."
+        f"This page is generated. Add a paper by editing "
+        f"[`data/{slug}.yaml`]({PIPELINE_BLOB}/data/{slug}.yaml) in the "
+        f"[pipeline repository]({PIPELINE_URL}) and rebuilding — edits made here are "
+        f"overwritten. The schema and house rules are in "
+        f"[CONTRIBUTING.md]({PIPELINE_BLOB}/CONTRIBUTING.md)."
     )
     return "\n".join(out) + "\n"
 
@@ -437,17 +449,23 @@ def render_readme(domains: list[dict], counts: dict[str, int]) -> str:
     out.append("## Contributing")
     out.append("")
     out.append(
-        "Entries live in `data/*.yaml` and the markdown pages are generated from them, "
-        "so a pull request should edit the YAML rather than the tables. "
-        "[CONTRIBUTING.md](CONTRIBUTING.md) covers the schema, how to pick a domain, "
-        "and the one-command way to turn a paper link into an entry."
+        "This repository holds the catalogue pages themselves. The records they are "
+        f"built from, and the tooling that builds them, live in [{PIPELINE_URL.split('/')[-1]}]"
+        f"({PIPELINE_URL}) — so a pull request that adds a paper edits the YAML there, "
+        "not the markdown here. Anything typed into a generated page is overwritten on "
+        "the next build."
     )
     out.append("")
     out.append("```bash")
-    out.append("pip install -r requirements.txt")
-    out.append("python scripts/build.py       # regenerate the markdown")
-    out.append("python scripts/validate.py    # check the data before pushing")
+    out.append(f"git clone {PIPELINE_URL}.git")
+    out.append("cd biomedical-ai-pipeline && pip install -r requirements.txt")
+    out.append('python scripts/fetch_meta.py "<doi>"   # or /add-paper <link> in Claude Code')
     out.append("```")
+    out.append("")
+    out.append(
+        f"The schema, the house rules and how to pick a domain page are in "
+        f"[CONTRIBUTING.md]({PIPELINE_BLOB}/CONTRIBUTING.md)."
+    )
     out.append("")
     if migrated == len(domains):
         out.append(
