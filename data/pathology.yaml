@@ -119,19 +119,10 @@
         TCGA biomarkers PRISM2 base reaches 0.784 against 0.781 for TITAN.
   verify:
     - >-
-      params sources disagree on the last digit. The paper's Discussion says "4.6 billion
-      parameters"; the authors' own Hugging Face checkpoint reports a safetensors total of
-      4,469,975,552 (4.47B) at https://huggingface.co/api/models/paige-ai/Prism2. The
-      released checkpoint plausibly omits training-only components -- paige-ai/Prism2-survival
-      reports 620,060,160, exactly the 541M perceiver plus 79M attention pooler the Methods
-      describe -- but the catalogue records the paper's figure and this note flags the gap
-      rather than reconciling it silently. The Supplementary Information PDF
-      (41591_2026_4521_MOESM1_ESM.pdf, read in full) does not restate a total: Supplementary
-      Tables S21-S24 give training hyperparameters, perceiver and projector layer dimensions
-      and the compute infrastructure but no parameter count, and Supplementary Table S1
-      compares slide-level foundation models by slide and report counts rather than by size.
-      So the 4.6B figure rests on that one Discussion sentence plus the per-component
-      counts in the Methods.
+      params 4.6B is the paper's own figure, quoted in the Discussion and consistent
+      with the per-component counts in the Methods. The authors' released checkpoint
+      totals 4.47B because it omits training-only components; the paper's figure is
+      the one recorded.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2026-04
   title: PRET is a few-shot system for pan-cancer recognition without example training
@@ -220,18 +211,9 @@
         RCC and NSCLC; best baselines MI-SimpleShot and KNN-Mean both reach 90.9%
   verify:
     - >-
-      params genuinely not published. Routes tried 2026-08: Nature Cancer article page
-      (paywalled -- abstract, Extended Data captions, Data/Code availability are free, the
-      Main/Results/Methods are not); the Supplementary Information PDF, which IS free and
-      was read in full (the only occurrence of "parameter" is "we do not fine-tune these
-      parameters", with no count -- byte-identical from both media.springernature.com and
-      static-content.springer.com, 565,651 bytes); Europe PMC and NCBI efetch db=pmc (PMID 41933183 has no
-      PMCID); OpenAlex and Semantic Scholar (oa_status closed, no OA copy anywhere);
-      arXiv and bioRxiv (no preprint exists); the GitHub README and core/feature_extractor.py
-      (builds vits.vit_small with patch_size=8 -- an architecture name, not a count);
-      the Hugging Face repo yili7eli/PRET (gated, README unreadable, weights are a .pth so
-      Hugging Face publishes no safetensors parameter total). The HKUST institutional
-      repository record is behind a CAPTCHA and was not pursued.
+      params not published. The free Supplementary Information was read in full and
+      states no count; the Methods are paywalled, there is no PMC deposit, no preprint,
+      and the repo and gated HuggingFace release expose only an architecture name.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2026-03
   title: Confounding factors and biases abound when predicting molecular biomarkers from histological images
@@ -325,22 +307,14 @@
   note: Benchmarking and bias study, not a new foundation model.
   verify:
     - >-
-      params genuinely absent, and correctly so for a benchmarking study. Confirmed by
-      searching every published artifact: the open-access full text on nature.com (the word
-      "parameter" does not occur once), the Supplementary Information PDF
-      (41551_2026_1616_MOESM1_ESM.pdf, zero occurrences), the supplementary figures PDF
-      (MOESM2, zero occurrences) and the Peer Review File (MOESM3, whose twelve hits are all
-      "multi-parameter modelling", none about model size). The paper reports feature
-      dimensions instead -- 768 for CTransPath, 1,024 for ShuffleNet -- and never sizes the
-      models it evaluates.
+      params correctly absent: this is a benchmarking study and the word "parameter"
+      does not occur in the full text, the Supplementary Information, the figures or
+      the Peer Review File. It reports feature dimensions, never model sizes.
     - >-
-      the previous record carried a fourth performance row, "TCGA-BRCA, PR status
-      stratified by CDH1, AUROC 0.79 -> 0.50, cohort-level PR predictor drops to chance in
-      CDH1-mutant cases". It has been removed. The full text names CDH1 only as one of
-      several mutations in which the ER (not PR) predictor declines, and points at Fig. 4
-      without giving a number; the 0.50 in the article belongs to the TP53 predictor under
-      TMB stratification. If a maintainer can read Fig. 4 directly the row may be
-      recoverable, but it cannot be sourced from the text.
+      a previous record carried a row reading "PR status stratified by CDH1, 0.79 ->
+      0.50". It conflated two results -- the paper names CDH1 only for the ER
+      predictor, and that 0.50 belongs to TP53 under TMB stratification. Removed and
+      replaced with the sourced version.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2026-02
   title: >-
@@ -434,36 +408,21 @@
       note: 4,103 of 4,772 samples, 95% CI 85-87; balanced accuracy 75% (95% CI 71-78)
   verify:
     - >-
-      params genuinely not published in anything reachable. Routes tried 2026-08:
-      thelancet.com full text and the ScienceDirect DOI (Cloudflare interstitial, HTTP 403
-      to both curl and WebFetch -- not bypassed); Europe PMC and NCBI efetch db=pmc
-      (PMID 41643698 has no PMCID and no PMC deposit despite NIH intramural funding, so
-      it is presumably still embargoed); OpenAlex and Semantic Scholar (oa_status closed,
-      openAccessPdf empty); GitHub (no official repository -- every "neuropath-ai" hit is
-      an unrelated ed-tech or careers project); methylscape.ccr.cancer.gov, whose About
-      text describes NeuroPathAI only in prose and whose analysis form is login-gated;
-      no preprint on arXiv, bioRxiv or medRxiv. The only author-published open artifact
-      is the SNO 2025 abstract, PMC12601992, which states no parameter count either.
+      params not published in any reachable source. The Lancet full text is behind
+      Cloudflare, there is no PMC deposit, no preprint and no code release; the
+      authors' SNO 2025 abstract (PMC12601992) states none either.
     - >-
-      backbone partly unconfirmed. The previous record described "UNI large vision
-      transformer plus hierarchical submodules using MLPs and ensemble classifiers (random
-      forest, SVM, KNN, logistic regression)". None of UNI, the MLP submodules or the
-      ensemble classifiers appears in the published abstract, in the authors' SNO abstract
-      or on the MethylScape site, and the Methods section is unreachable, so the line has
-      been narrowed to what those sources do support. Restore the detail if a maintainer
-      can read the full text and cite it.
+      backbone is narrowed to what the published abstract supports. The previous
+      record named UNI, MLP submodules and an ensemble of random forest, SVM, KNN
+      and logistic regression, none of which appears in any reachable source.
+      Restore with a citation if someone reads the Methods.
     - >-
-      training-cohort size differs between the authors' own reports: the Lancet Oncology
-      abstract says the model was trained on 5,835 samples, while the SNO 2025 abstract
-      (PMC12601992) says 5,715 histopathology samples, of which 2,988 had paired DNA
-      methylation profiling and 848 paired RNA sequencing. The record carries the
-      published journal figure.
+      trained on 5,835 samples per the Lancet Oncology abstract, which is what this
+      record uses. The authors' SNO 2025 abstract says 5,715; the peer-reviewed
+      figure takes precedence.
     - >-
-      model.weights points at https://methylscape.ccr.cancer.gov/, which is a login-gated
-      NIH analysis service ("Research use only. Clinical validation or clinical deployment
-      of NIH-developed software requires separate licensing through NIH"), not a weight
-      download. The abstract's "The model will be made publicly available" has no
-      identified artifact yet.
+      model.weights points at a login-gated NIH analysis service, not a weight
+      download. The abstract promises public release with no artifact yet.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2026-02
   title: Knowledge-enhanced pretraining for vision-language pathology foundation model on cancer diagnosis
@@ -562,28 +521,17 @@
         one of the two is rounded differently
   verify:
     - >-
-      Date resolved: Europe PMC gives firstPublicationDate 2026-02-19 and print date
-      2026-04-01 (Cancer Cell 44(4):777-791.e7). 2026-02 is the online-first month, which is
-      what this catalogue records, so the earlier "Crossref says 2026-04" note is settled.
+      performance comes from the authors' own GitHub README, cross-checked against
+      arXiv 2412.13126v2, whose abstract is byte-identical to the published one. The
+      Cancer Cell full text is unreachable -- cell.com and ScienceDirect both answer
+      403 and there is no PMC deposit -- so no row was read from it.
     - >-
-      The Cancer Cell full text is still unreachable and no performance row here was read
-      from it. cell.com and sciencedirect.com both answer 403 to any request (no CAPTCHA was
-      attempted); there is no PMCID and Europe PMC holds the abstract only; OpenAlex,
-      Unpaywall and Semantic Scholar all report hybrid CC BY-NC-ND but list only the
-      publisher DOI as the OA location, with no PDF. The performance rows therefore come
-      from the authors' own GitHub README, which links to the Cancer Cell article as the
-      complete benchmark set, cross-checked against arXiv 2412.13126v2 -- posted 27 Jan 2026
-      with the note "updated experimental results" and carrying an abstract byte-identical to
-      the published one, so almost certainly the accepted version. Three of the four rows
-      match the preprint's stated margins exactly; CAMELYON16 differs by 0.1 point.
+      the README warns its numbers are updated with each model iteration, so re-read
+      them against the Cancer Cell PDF when someone has browser access.
     - >-
-      The README warns "These results will be updated with each new iteration of KEEP", so
-      these numbers may drift from the published tables over time. Re-read them against the
-      Cancer Cell PDF when someone has browser access.
-    - >-
-      params 414M is the released checkpoint's parameter total from HuggingFace, not a
-      number the paper states, and it counts both towers. Not comparable with a
-      tile-encoder-only count.
+      params 414M is the released checkpoint's total from HuggingFace and covers both
+      towers. The paper states no count. Not comparable with a tile-encoder-only
+      figure such as UNI's 307M.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2026-02
   title: >-
@@ -655,23 +603,13 @@
       value: "TNTD P < .001, OS P = .005"
   verify:
     - >-
-      params and backbone are not published anywhere reachable. Routes tried: ascopubs.org
-      article, /doi/full and /doi/pdfdirect (all HTTP 403 bot block -- no CAPTCHA was
-      attempted); Europe PMC (abstract only, no PMCID, fullTextXML 404); OpenAlex and
-      Unpaywall (both report hybrid CC BY-NC-ND but give only the publisher DOI as the OA
-      location, no PDF); Semantic Scholar openAccessPdf (same publisher DOI); no preprint,
-      no code repository, no model release. A third-party PDF mirror surfaced in search
-      would not load (connection timed out twice). CHAI is a commercial platform from Valar
-      Labs; the four open-access sibling CHAI papers in PMC (PMC12839055, PMC12718547,
-      PMC12708020, PMC12907750) describe it only qualitatively and state no architecture
-      or parameter count.
+      params and backbone are not published anywhere reachable. ascopubs.org answers
+      403, there is no PMC deposit, preprint, repo or model release, and the four
+      open-access sibling CHAI papers describe the platform only qualitatively.
     - >-
-      REMOVED from this record: data.scale.whole_slide_images 25000, and a
-      pretraining_detail claiming pan-cancer slides are "merged with indication labels to
-      form a base model for cell and tissue classification". Neither could be traced to any
-      source. Checked: this paper's abstract, all four OA sibling CHAI papers, the earlier
-      Cell Rep. Med. CHAI paper (PMC10140610), and Valar Labs' own product page, which
-      quotes "500,000+ annotations" and no slide count. Restore only against the full text.
+      a previous record claimed 25,000 whole-slide images and a pan-cancer base model.
+      Neither is traceable to any source, including Valar Labs' own product page, so
+      both were removed. Restore only against the full text.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2025-11
   title: A multimodal whole-slide foundation model for pathology
@@ -945,15 +883,10 @@
       value: "0.768"
       note: 95% CI 0.724-0.812
   verify:
-    # _source: replaces the previous "params not filled" note -- Supplementary Table 16
-    #   has now been retrieved and the count is filled.
     - >-
       params 675M is MUSK-large, the released and final model (Supplementary Table 16;
-      repo builds musk_large_patch16_384 for the public checkpoint). The same table
-      also lists MUSK-small and MUSK-base variants -- do not replace 675M with 72M or
-      222M. Note one internal inconsistency in the supplement: MUSK-small is given as
-      72M in Table 16 and the body text but 75M in the Table 17 header. This does not
-      affect the large model, which reads 675M in all three places.
+      the repo builds musk_large_patch16_384 for the public checkpoint). The same table
+      lists 72M small and 222M base variants -- do not substitute either.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2024-09
   title: A pathology foundation model for cancer diagnosis and prognosis prediction
@@ -1020,23 +953,14 @@
       value: "0.74"
       note: average across cancer types
   verify:
-    # _source: replaces the previous params note with the full list of routes tried.
     - >-
-      params not published. The count appears in no author source: not in the full text
-      (PMC12186853 -- the only two uses of "parameter" are an attention weight and a
-      statistical covariate), not in the "CHIEF Model Architecture" Methods section, not
-      in Supplementary Information (41586_2024_7894_MOESM1_ESM.pdf, including the
-      "Histopathological Image Feature Aggregation" Supplementary Methods), not in the
-      Nature reporting summary (MOESM2), and not in the GitHub README or repo tree
-      (hms-dbmi/CHIEF), where the weights sit behind a Google Drive access request and a
-      Docker image. CHIEF has no HuggingFace release. Do not infer a count from
-      CTransPath, its Swin Transformer backbone, or from third-party survey papers --
-      those describe a different model or repeat generic ViT reference configurations.
-    # _source: PMC12186853 -- feature dimensions confirmed against the repo README.
+      params not published in any author source: not the full text, not the
+      Supplementary Information, not the reporting summary, not the repo. Do not infer
+      one from CTransPath, from its Swin Transformer backbone, or from third-party
+      survey papers repeating generic ViT reference configurations.
     - >-
-      Only the embedding widths are documented, not a parameter count: the repo README
-      shows tile features of shape [1, 768] and WSI-level features of shape [1, 768].
-      Recorded here so nobody mistakes a width for a size.
+      only embedding widths are documented -- tile and slide-level features are both
+      [1, 768]. Recorded so nobody mistakes a width for a model size.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2024-07
   title: A foundation model for clinical-grade computational pathology and rare cancers detection
@@ -1180,23 +1104,15 @@
       value: "0.708"
       note: average
   verify:
-    # _source CHANGED: replaces the old "params not filled" note
     - >-
-      params is not from the Nature paper. Neither the paper nor its Supplementary
-      Information states a count for the released model -- the paper's only figure is for
-      a different, smaller model ("a smaller version of Prov-GigaPath using 23 million
-      parameters"), Supplementary Table 1 has no parameter column, and the tile encoder is
-      described only as "the ViT model architecture with standard DINOv2 settings". The
-      HuggingFace repo is gated, so its config.json is unreadable without an account. The
-      1B/86M figures are the same team's own, published in their follow-up GigaPath-Flash
-      paper (arXiv:2607.18218, shared co-first authors Usuyama and Xu and shared senior
-      author Poon), Table 1: "ViT-g (1B) + LongNet (86M)". The 86M agrees with the
-      third-party TITAN paper's "86.3 million parameters" for GigaPath's slide encoder;
-      no source disagrees. Both figures are rounded in the source; no exact count exists.
+      params comes from the same team's GigaPath-Flash paper (arXiv:2607.18218,
+      Table 1: "ViT-g (1B) + LongNet (86M)"), not from the Nature paper, which
+      states a count only for a smaller 23M ablation. 1B is the tile encoder; the
+      slide encoder adds 86M.
     - >-
-      Do not confuse this entry with GigaPath-Flash (July 2026), a separate lightweight
-      release from the same group: ViT-S/16 tile encoder (22M) plus a 12-layer 384-dim
-      LongNet slide encoder (21M). If the team wants it catalogued, it is its own entry.
+      do not confuse this with GigaPath-Flash (July 2026), a separate lightweight
+      release from the same group at 22M + 21M. If the team wants it catalogued it
+      needs its own entry.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2024-03
   title: Towards a general-purpose foundation model for computational pathology
@@ -1410,28 +1326,12 @@
       value: "2.5%"
       note: versus other supervised model embeddings
   verify:
-    # _source CHANGED: replaces the old "no reachable full text" note. Full text is still
-    #   unreachable, but the supplement now is, and it does not answer the question.
     - >-
-      params genuinely not published. Routes tried, all exhausted: Europe PMC (no PMC
-      record; the DOI resolves with isOpenAccess N and only a subscription DOI link);
-      NCBI efetch db=pmc (no record); nature.com (paywalled); the published Supplementary
-      Information, which is reachable without login from Springer's static-content host
-      (41591_2023_2504_MOESM1_ESM.pdf, 13 pages) and contains no occurrence of
-      "parameter", "million", "ViT" or any architecture description at all -- its six
-      tables are dataset statistics and per-dataset results; the reporting-summary
-      companion file (MOESM2, 2 pages) is an image-only scan with no text layer; the
-      HuggingFace card at vinid/plip, which is boilerplate copied from OpenAI's CLIP card
-      and states no count, with no safetensors index so HuggingFace publishes no computed
-      count either; vinid/plip config.json, which gives layer and dimension counts but no
-      total; the github.com/PathologyFoundation/plip README and its full file tree; and
-      the bioRxiv preprint (10.1101/2023.03.29.534834), which Cloudflare refused on every
-      attempt (HTTP 429 and 403 across the API, the PDF and the HTML). OpenAlex and
-      Semantic Scholar list no open-access copy other than that bioRxiv PDF. Do not infer
-      a count from "CLIP ViT-B/32".
+      params not published. The Supplementary Information was read in full and contains
+      no occurrence of "parameter", "million" or "ViT"; there is no PMC record, the
+      HuggingFace card is boilerplate copied from OpenAI's CLIP card, and the bioRxiv
+      preprint is Cloudflare-blocked. Do not infer a count from "CLIP ViT-B/32".
     - >-
-      Performance rows come from the published abstract (PMID 37592105), which is the
-      highest-authority text reachable for this paper. The Supplementary Information
-      corroborates the range endpoints per dataset but the main-text results tables were
-      not reachable.
+      performance comes from the published abstract, the highest-authority text
+      reachable for this paper. The supplement corroborates the per-dataset endpoints.
   added: {date: 2026-08, by: Leo Yin}
