@@ -1,0 +1,109 @@
+name: add-approved-papers
+
+# PARKED -- this is where the pipeline goes once it moves to a shared server,
+# not how it runs today.
+#
+# The team decided to run the loop locally for the first few weeks, so the
+# everyday path is `/weekly-scan` in Claude Code: same discovery scan, same
+# /add-paper pipeline, same pull request, on your existing subscription and
+# billing nothing extra. Nothing here has to be switched on for that to work.
+#
+# What this file adds when you are ready: the unattended version, so the
+# candidates are triaged even in a week when nobody opens a terminal. It runs
+# only on manual dispatch until then -- an issue_comment trigger would fire on
+# every `@claude` mention and fail loudly on a repository with no credential
+# configured.
+#
+# To switch it on:
+#   1. add a credential to repo secrets -- ANTHROPIC_API_KEY (billed per token)
+#      or, on a Claude subscription, `claude setup-token` stored as
+#      CLAUDE_CODE_OAUTH_TOKEN (no extra cost) with the line below swapped;
+#   2. uncomment the issue_comment trigger and the `if` clause under it.
+#
+# Either way it never writes to the default branch: validate.yml gates the pull
+# request and a maintainer merges. The agent proposes; a human vouches.
+
+on:
+  # issue_comment:
+  #   types: [created]
+  workflow_dispatch:
+    inputs:
+      links:
+        description: Paper links to add, space or newline separated
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  add:
+    # Restore this alongside the issue_comment trigger above:
+    # if: >
+    #   github.event_name == 'workflow_dispatch' ||
+    #   (contains(github.event.issue.labels.*.name, 'paper-triage') &&
+    #    contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            TRIGGER: ${{ github.event_name }}
+            TRIAGE_ISSUE: ${{ github.event.issue.number || 'none' }}
+            DIRECT_LINKS: ${{ inputs.links || 'none' }}
+            RUN_ID: ${{ github.run_id }}
+
+            You are turning approved paper candidates into catalogue entries.
+
+            1. Collect the links.
+               - If TRIAGE_ISSUE is a number: `gh issue view <n> --json body`
+                 and take the link from every ticked checkbox line (`- [x]`).
+                 Skip lines that are struck through (`~~`) — those were
+                 already processed by an earlier run.
+               - Otherwise use DIRECT_LINKS.
+               - If there are no links, comment on the issue explaining that
+                 nothing was ticked, and stop.
+
+            2. For each link, follow `.claude/commands/add-paper.md` exactly.
+               Every house rule in it applies, especially: bibliographic
+               fields come from `scripts/fetch_meta.py`, never from memory;
+               `params` only if the paper states it; `performance` only with
+               numbers you can point to, an empty list is the expected
+               answer; anything unconfirmed becomes a `verify` note.
+
+            3. Group the new entries by domain page. For each domain:
+               - branch `papers/${{ github.run_id }}-<slug>` off the default
+                 branch,
+               - add the entries to `data/<slug>.yaml`,
+               - run `python scripts/build.py` then
+                 `python scripts/validate.py --report` — both must pass,
+               - open a PR titled `feat(<slug>): add <models or first title>`.
+                 The body lists each paper with its routing rule and verify
+                 notes. Request review from the page maintainers whose
+                 `github:` field in `data/domains.yaml` is filled in.
+
+            4. If TRIAGE_ISSUE is a number, edit the issue body to strike
+               through (`~~...~~`) the lines you processed, keeping their
+               checkboxes ticked, then comment with links to the PRs you
+               opened. Do not close the issue.
+
+            Never push to the default branch. Never merge a PR. If a link
+            cannot be resolved to a DOI or arXiv id, say so in the issue
+            comment instead of guessing.
+          claude_args: |
+            --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(git:*),Bash(gh:*),Read,Write,Edit,Glob,Grep,WebFetch"
