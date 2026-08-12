@@ -45,7 +45,16 @@
   verify:
     - >-
       performance not filled -- full text paywalled, abstract states no numeric results
-      (only "achieves or exceeds ... (P < 0.05)" claims).
+      (only "achieves or exceeds ... (P < 0.05)" claims). Retried 2026-08 via Europe PMC
+      and NCBI efetch: PMID 42538427 has no PMCID and no full text in EPMC, so the
+      published numbers are still out of reach. The arXiv PRISM2 preprint is a different
+      paper -- do not fill this field from it.
+    - >-
+      params 4.6B is UNCONFIRMED. No reachable source states it: the paper is paywalled
+      with no PMC deposit and its abstract never mentions a parameter count. It may have
+      been summed from the components (Virchow2 + Perceiver + BioGPT + Phi-3 Mini 3.8B)
+      rather than quoted, which the params rule forbids. Confirm against the paper or its
+      supplementary and either cite it here or set params to null.
   added: {date: 2026-08, by: Leo Yin}
 
 - date: 2026-04
@@ -126,12 +135,28 @@
     Molecular biomarker and gene mutation prediction from WSIs, plus a
     confounding/stratification analysis against biomarker interdependency, grade and TMB.
   modalities: [histopathology]
+  performance:
+    - benchmark: TCGA-BRCA (cross-validation) and ABCTB (independent validation)
+      metric: AUROC, ER status
+      value: "0.87 / 0.90"
+      note: CLAM with CTransPath features; the same models reach 0.79 / 0.78 for PR
+    - benchmark: TCGA-CRC, MSI status
+      metric: AUROC, whole cohort vs stratified subgroups
+      value: "0.88 -> 0.72"
+      note: >-
+        SlideGraph-infinity; 0.88 (0.873-0.886) over the whole cohort falls to 0.72
+        within both the hypermutated and the non-hypermutated subgroup
+    - benchmark: TCGA-BRCA, grade-only baseline
+      metric: AUROC
+      value: "ER 0.76, PR 0.70, TP53 0.75"
+      note: >-
+        SVM on one-hot pathologist-assigned grade; the weakly supervised TP53 predictor
+        reaches only 0.81, so the added value of the ML model is modest
+    - benchmark: TCGA-BRCA, PR status stratified by CDH1
+      metric: AUROC
+      value: "0.79 -> 0.50"
+      note: cohort-level PR predictor drops to chance in CDH1-mutant cases
   note: Benchmarking and bias study, not a new foundation model.
-  verify:
-    - >-
-      performance not filled -- full text paywalled, abstract states no numeric results.
-      The bioRxiv preprint "Buyer Beware" carries AUROC tables; do not copy them across
-      without checking they survived into this Nat. Biomed. Eng. version.
   added: {date: 2026-08, by: Leo Yin}
 
 - date: 2026-02
@@ -270,8 +295,14 @@
       here, which is likely the online-first month. Left at 2026-02; correct it if
       the issue date is what we want.
     - >-
-      performance not filled -- full text paywalled, abstract states no numeric results
-      (only dataset counts: 18 public benchmarks, 4 institutional rare cancer datasets).
+      performance and params not filled -- the abstract states no numeric results (only
+      dataset counts: 18 public benchmarks, 4 institutional rare cancer datasets) and no
+      parameter count. Retried 2026-08: Europe PMC holds the abstract only and there is
+      no PMC deposit; cell.com and ScienceDirect both answer with a bot-verification
+      challenge, although OpenAlex lists the article as hybrid open access, so a reader
+      with browser access should be able to fill both fields. The arXiv preprint
+      2412.13126 carries results tables; do not copy them across without checking they
+      survived into this Cancer Cell version.
   added: {date: 2026-08, by: Leo Yin}
 
 - date: 2025-11
@@ -289,6 +320,11 @@
   model:
     name: SMMILe
     repo: https://github.com/ZeyuGaoAi/SMMILe
+    params_note: >-
+      The paper reports SMMILe's own cost as "1.50 GFLOPS, 1.20 M parameters" for
+      1,024-dimension patch embeddings; the frozen ResNet-50/CONCH patch encoder is
+      not counted, so this is not comparable to a tile-encoder parameter count.
+  params: 1.2M
   backbone: >-
     ResNet-50 and CONCH patch encoders with an instance-based multiple-instance-learning
     architecture using superpatch and refinement modules
@@ -341,6 +377,7 @@
     name: TITAN
     repo: https://github.com/mahmoodlab/TITAN
     weights: https://huggingface.co/MahmoodLab/TITAN
+  params: 48.5M
   backbone: ViT slide encoder (Transformer-based Image and Text Alignment Network) over CONCH v1.5 patch features
   pretraining: [self-supervised, contrastive, CLIP]
   pretraining_detail: >-
@@ -378,6 +415,11 @@
       states in running text. Absolute TITAN scores sit in the figures and supplementary
       tables, which were not readable from the accessible full text -- replace these rows
       with absolute values if someone has the PDF.
+    - >-
+      params 48.5M is quoted by the paper for TITAN ("TITAN and TITAN V, with 48.5 million
+      and 42.1 million parameters"). It is a slide-encoder count and excludes the CONCH
+      v1.5 patch encoder, so it is not comparable with tile-encoder counts such as
+      Virchow's 632M.
   added: {date: 2026-08, by: Leo Yin}
 
 - date: 2025-01
@@ -428,6 +470,12 @@
       metric: AUC
       value: "0.768"
       note: 95% CI 0.724-0.812
+  verify:
+    - >-
+      params not filled -- the word "parameter" does not appear anywhere in the accessible
+      full text (PMC12295649). Methods defer the model configuration to Supplementary
+      Table 16 and Extended Data Fig. 7, neither of which was reachable. Do not infer a
+      count from "BEiT-3".
   added: {date: 2026-08, by: Leo Yin}
 
 - date: 2024-09
@@ -451,7 +499,13 @@
     Two complementary pretraining strategies: unsupervised pretraining for tile-level
     features and weakly supervised pretraining for whole-slide pattern recognition.
   data:
-    description: Tile-level and slide-level pretraining across many cancer types and institutions
+    description: >-
+      Unsupervised tile-level pretraining then weakly supervised slide-level
+      pretraining, across 14 cohorts and 19 anatomical sites
+    scale:
+      image_tiles: 15000000
+      whole_slide_images: 60530
+      anatomical_sites: 19
   tasks: [classification, detection, subtyping, prognosis, mutation prediction]
   tasks_detail: >-
     Cancer cell detection, tumour origin identification, molecular profile prediction and
@@ -477,7 +531,14 @@
       value: "0.74"
       note: average across cancer types
   verify:
-    - Pretraining data scale (tiles / WSIs) not yet filled in from the paper.
+    - >-
+      Pretraining data scale (tiles / WSIs) not yet filled in from the paper. The
+      accessible full text (PMC12186853) does give "15 million pathology image tiles"
+      and "60,530 WSIs across 19 anatomical sites" -- transcribe them into data.scale.
+    - >-
+      params not filled -- the paper states no parameter count for CHIEF in the main text
+      or the "CHIEF Model Architecture" Methods section. Do not infer one from CTransPath
+      or its SwinTransformer backbone.
   added: {date: 2026-08, by: Leo Yin}
 
 - date: 2024-07
@@ -577,6 +638,14 @@
       metric: AUROC
       value: "0.708"
       note: average
+  verify:
+    - >-
+      params not filled -- the paper states no parameter count for the released
+      Prov-GigaPath. The only count it gives is for a different, smaller model ("a smaller
+      version of Prov-GigaPath using 23 million parameters"), and the tile encoder is
+      described only as "the ViT model architecture with standard DINOv2 settings". The
+      TITAN paper quotes 86.3M for GigaPath's slide encoder; that is a third-party figure
+      and was deliberately not carried across.
   added: {date: 2026-08, by: Leo Yin}
 
 - date: 2024-03
@@ -725,4 +794,10 @@
       metric: F1 improvement
       value: "2.5%"
       note: versus other supervised model embeddings
+  verify:
+    - >-
+      params not filled -- this is the one entry on the page with no reachable full text.
+      There is no PMC record (checked Europe PMC and NCBI elink on PMID 37592105) and
+      nature.com redirects to the paywall, so whether the paper states a count is unknown
+      rather than answered. The abstract does not. Do not infer one from "CLIP ViT-B/32".
   added: {date: 2026-08, by: Leo Yin}
