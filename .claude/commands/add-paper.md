@@ -53,30 +53,59 @@ Say which rule you applied, so the choice can be argued with.
 
 Read the paper (and its supplementary) for these. Every one has a house rule.
 
-If the full text is paywalled — routine for Nature-family journals off campus —
-work from the abstract, leave `performance` empty unless the abstract states
-numbers, and add a `verify` note saying the full text was not reachable. Do not
-fill a field from a press release, a secondary summary, or your own recollection
-of the paper. Running this from a machine with institutional access (a UofT
-desktop) fills more fields; otherwise flag the paper so a human can fetch the
-PDF.
+**Work the access routes before concluding a paper is unreachable.** "Paywalled"
+is usually wrong, and settling for the abstract leaves fields empty that are
+sitting in plain sight. In order:
 
-Fetching `nature.com/articles/...` directly returns a login redirect, not the
-paper. Europe PMC serves the verbatim abstract for most of these, including
-Lancet and JCO:
+**1. nature.com itself, with a browser User-Agent.** It 303s to
+`?error=cookies_not_supported` and then serves the complete article — Results
+and Methods included — for open-access papers. A default curl or library
+User-Agent is what gets bounced, not you.
 
 ```bash
-curl -s 'https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:"10.1038/s41591-026-04521-4"&resultType=core&format=json'
+curl -sL -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" \
+  "https://www.nature.com/articles/s41591-026-04521-4"
 ```
 
-Structured abstracts often carry the headline numbers in their Results or
-Findings section, which is enough for `performance`. That is a real source you
-read, not a recollection — the rules above still apply to every number in it.
+**2. Springer supplements, no login.** Where Methods say "configurations are in
+Supplementary Table 16", that table is fetchable. Derive the filename from the
+DOI — `10.1038/s41586-024-08378-w` → journal `41586`, year `2024`, number `8378`
+with leading zeros stripped — and read it with `pdftotext file.pdf -`. Try
+`MOESM1` through `MOESM4`.
+
+```bash
+curl -sL "https://static-content.springer.com/esm/art%3A10.1038%2Fs41586-024-08378-w/MediaObjects/41586_2024_8378_MOESM1_ESM.pdf" -o supp.pdf
+```
+
+**3. Europe PMC**, for the abstract and for PMC-deposited full text. Note its
+`isOpenAccess` field goes stale — it says `N` for papers nature.com serves in
+full, so treat it as a hint, not a verdict.
+
+```bash
+curl -s 'https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:"<doi>"&resultType=core&format=json'
+```
+
+**4. Author-published artifacts** — the GitHub README and the HuggingFace model
+card or `config.json`. For a parameter count these are often more explicit than
+the paper, and they come from the same authors, so they are a citable source.
+Say which component the number covers.
+
+**5. OpenAlex / Semantic Scholar** to locate an OA copy elsewhere.
+
+Only after all five: work from the abstract, leave `performance` empty, and add
+a `verify` note naming the routes you tried. Never fill a field from a press
+release, a secondary summary, or your own recollection. Elsevier and Lancet sit
+behind Cloudflare or a CAPTCHA — do not attempt to defeat either; flag those for
+a human with browser access.
 
 - `model.name` — the name the authors give it. No name, use the method acronym.
-- `params` — total parameter count, format `632M` / `4.6B`. **Leave it `null`
-  unless the paper states it.** Do not infer a count from the backbone name, and
-  do not copy a number from a different paper about the same architecture.
+- `params` — total parameter count, format `632M` / `4.6B`. Fill it from the
+  paper, its supplement, or the authors' own model card or repo — all three are
+  citable, and the supplement is where it usually hides. **Never infer one from
+  a backbone name, never compute it, and never copy a figure another team's
+  paper quotes about this model.** Say which component it covers when a model
+  has several (tile encoder vs slide encoder, vision vs text). Leave it `null`
+  only once you have worked the routes above and come up empty, and say so.
 - `backbone` — architecture in one line.
 - `pretraining` — terms from the `pretraining` list in `data/vocab.yaml`.
   `pretraining_detail` — the recipe in one or two sentences.

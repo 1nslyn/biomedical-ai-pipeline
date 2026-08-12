@@ -333,13 +333,6 @@ def render_detail(entry: dict, vocab: Vocab) -> list[str]:
             )
         out.append("")
 
-    if entry.get("verify"):
-        out.append("> [!NOTE]")
-        out.append("> Needs checking before this entry is considered final:")
-        for item in entry["verify"]:
-            out.append(f"> - {str(item).strip()}")
-        out.append("")
-
     out.append("</details>")
     out.append("")
     return out

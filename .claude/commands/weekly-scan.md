@@ -85,20 +85,21 @@ house rule there applies: bibliographic fields from `scripts/fetch_meta.py`
 rather than memory, `params` only when the paper states it, `performance` only
 with numbers you can point at, honest `verify` notes for the rest.
 
-### When the full text is paywalled
+### When you cannot reach the full text
 
-Expected for Nature-family journals off campus. Do not guess and do not skip:
+Rarer than it looks. `add-paper.md` lists five access routes and most Nature
+papers fall to the first two — a browser User-Agent on nature.com, and the
+Springer supplement host. Work all five before calling a paper unreachable;
+stopping at the abstract is how fields end up empty that were never actually
+gated.
 
-1. Fill everything the abstract supports. `nature.com` redirects to a login
-   page, so get the abstract from Europe PMC instead — see the command in
-   `add-paper.md`. Structured abstracts often state the headline numbers.
-2. Leave `performance` empty when the abstract has none, and add a `verify` note
-   saying the full text was not reachable.
-3. Collect the paper in the handoff list below so the user can fetch the PDF
-   from a machine with institutional access.
+When a paper really is blocked — Elsevier and Lancet sit behind Cloudflare and a
+CAPTCHA, which you do not attempt to defeat:
 
-Running this from a UofT desktop resolves most of it — the proxy makes the full
-text reachable and the same command fills more fields.
+1. Fill everything the accessible sources support.
+2. Leave `performance` empty and add a `verify` note naming the routes tried.
+3. Collect the paper in the handoff list below so a human with browser or
+   institutional access can finish it.
 
 ## 4. Build, validate, branch
 

@@ -21,42 +21,118 @@
   model:
     name: PRISM2
     weights: https://huggingface.co/paige-ai/Prism2
+    # _source: https://huggingface.co/api/models/paige-ai/Prism2 -> cardData.license
+    #          (same value on paige-ai/Prism2-survival); the paper's Code availability
+    #          section names both Hugging Face repos as the official weight release.
+    license: CC-BY-NC-ND-4.0
+  # _source: https://www.nature.com/articles/s41591-026-04521-4 (Discussion, OA full
+  #          text): "It is the largest model (4.6 billion parameters) trained on the
+  #          most comprehensive dataset to date". CONFIRMED -- was previously flagged
+  #          UNCONFIRMED. See the verify note for the second-source disagreement.
   params: 4.6B
+  # _source: https://www.nature.com/articles/s41591-026-04521-4 (Methods, "Model
+  #          architecture"): perceiver slide encoder (one cross-attention block +
+  #          six self-attention layers, 256 latent queries) 541M params, attention
+  #          pooler 79M, two-layer MLP adapter 29M, Phi-3 Mini "a 3.8-bilion-parameter
+  #          decoder-only LLM", BioGPT as the contrastive language encoder, Virchow2
+  #          tile embeddings at 0.5 microns-per-pixel.
   backbone: >-
-    Virchow2 tile encoder, Perceiver slide encoder, BioGPT language encoder and a
-    Phi-3 Mini 3.8B decoder-only LLM
+    Virchow2 tile encoder, Perceiver slide encoder (541M, plus a 79M attention pooler),
+    BioGPT language encoder and a Phi-3 Mini 3.8B decoder-only LLM reached through a
+    29M-parameter MLP adapter
   pretraining: [contrastive, next-token prediction]
+  # _source: https://www.nature.com/articles/s41591-026-04521-4 (Methods, "Training"):
+  #          stage 1 updates slide encoder, attention pooler, LLM adapter and BioGPT
+  #          with Phi-3 Mini frozen; stage 2 discards the contrastive objective, freezes
+  #          the slide encoder and fine-tunes the LLM adapter and Phi-3 Mini.
   pretraining_detail: >-
     Two-stage language-supervised multimodal pre-training: contrastive slide-report
-    alignment, then autoregressive clinical-dialogue learning. The slide encoder is
-    frozen while Phi-3 Mini is fine-tuned in stage 2.
+    alignment against BioGPT text embeddings plus an autoregressive dialogue objective,
+    then a second stage in which the contrastive objective is dropped, the slide encoder
+    is frozen and Phi-3 Mini is fine-tuned. Trained on 56 A100 40GB GPUs in bf16.
   data:
     description: H&E whole-slide images with paired clinical reports, converted into question-answer pairs
+    # _source: https://www.nature.com/articles/s41591-026-04521-4 (Methods, "Data"):
+    #          "The training data comprise 685,507 specimens collected from 200,692
+    #          patients ... totaling 685,507 reports and 2,350,518 slides"; and
+    #          (Methods, "Dialogue data"): "we create 685,000 report rewrites for as
+    #          many specimens and 14 million question-answer pairs". All four existing
+    #          counts verified exactly against the published Methods.
     scale:
       whole_slide_images: 2350518
       specimens: 685507
       patients: 200692
       qa_pairs: 14000000
-  tasks: [detection, subtyping, biomarker prediction, survival prediction, report generation]
+  # _source: `grading` and `question answering` added -- Fig. 4a evaluates PANDA-SI /
+  #          PANDA-MI prostate grading and IMP-CRS colorectal grading, and prompt-based
+  #          inference is literally yes/no and multiple-choice question answering
+  #          (https://www.nature.com/articles/s41591-026-04521-4, Results).
+  tasks: [detection, subtyping, grading, biomarker prediction, survival prediction, question answering, report generation]
   tasks_detail: >-
-    Prompt-based cancer detection and subtyping; diagnostic, biomarker and survival
-    prediction; pathology report completion.
+    Prompt-based cancer detection and subtyping via yes/no and multiple-choice question
+    answering; diagnostic, biomarker and survival prediction by linear probing on the
+    base and diagnostic embeddings; staging and grading on external public data;
+    pathology report completion following CAP guidelines.
   modalities: [histopathology, text]
+  performance:
+    # _source: all five rows from https://www.nature.com/articles/s41591-026-04521-4
+    #          (Results, OA full text). Row 1 = "For pan-cancer detection, PRISM2
+    #          diagnostic embeddings (0.967 AUC) substantially outperform both PRISM2
+    #          base (0.956 AUC) and all other embeddings (0.947 AUC with PRISM, 0.931
+    #          AUC with TITAN)."
+    - benchmark: MSK pan-cancer detection (linear probing)
+      metric: AUC
+      value: "0.967"
+      note: >-
+        diagnostic embedding; 0.956 with the base embedding, 0.947 with PRISM and 0.931
+        with TITAN. Drop on rare cancers is modest, 0.967 to 0.957.
+    # _source: "PRISM2 survival embeddings outperform the survival specialist model
+    #          (Fig. 4b), especially for MSK CRC RFS (0.809 versus 0.773 concordance
+    #          index (C-index))."
+    - benchmark: MSK colorectal cancer recurrence-free survival
+      metric: C-index
+      value: "0.809"
+      note: >-
+        PRISM2 survival embeddings, versus 0.773 for a survival specialist model trained
+        from scratch on the same 225,597-case survival dataset
+    # _source: "with PRISM2 diagnostic and base (0.881 and 0.888) significantly
+    #          (P < 0.05) outperforming PRISM (0.852) and TITAN (0.641)."
+    - benchmark: CAMELYON17 tumour staging (external, five-fold across source institutions)
+      metric: quadratic weighted kappa
+      value: "0.888 / 0.881"
+      note: base / diagnostic embeddings, versus 0.852 for PRISM and 0.641 for TITAN
+    # _source: "PRISM2 diagnostic embeddings significantly (P < 0.05) outperformed all
+    #          other embeddings, achieving 0.862 quadratic weighted (compared to 0.836
+    #          with base, 0.841 with PRISM and 0.750 with TITAN)."
+    - benchmark: PANDA-SI prostate cancer grading (external, cross-institution transfer)
+      metric: quadratic weighted kappa
+      value: "0.862"
+      note: diagnostic embedding; 0.836 base, 0.841 PRISM, 0.750 TITAN
+    # _source: "average AUCs on MSK TCGA tasks are highest for PRISM2 base embeddings,
+    #          the next-best-performing models are close: 0.846 (versus 0.854) AUC with
+    #          COBRA on MSK and 0.781 (versus 0.784) AUC on TCGA with TITAN."
+    - benchmark: Biomarker prediction, 10 tissue-specific MSK datasets (linear probing)
+      metric: mean AUC
+      value: "0.854"
+      note: >-
+        PRISM2 base embedding; next best is COBRA at 0.846. On the seven overlapping
+        TCGA biomarkers PRISM2 base reaches 0.784 against 0.781 for TITAN.
   verify:
     - >-
-      performance not filled -- full text paywalled, abstract states no numeric results
-      (only "achieves or exceeds ... (P < 0.05)" claims). Retried 2026-08 via Europe PMC
-      and NCBI efetch: PMID 42538427 has no PMCID and no full text in EPMC, so the
-      published numbers are still out of reach. The arXiv PRISM2 preprint is a different
-      paper -- do not fill this field from it.
-    - >-
-      params 4.6B is UNCONFIRMED. No reachable source states it: the paper is paywalled
-      with no PMC deposit and its abstract never mentions a parameter count. It may have
-      been summed from the components (Virchow2 + Perceiver + BioGPT + Phi-3 Mini 3.8B)
-      rather than quoted, which the params rule forbids. Confirm against the paper or its
-      supplementary and either cite it here or set params to null.
+      params sources disagree on the last digit. The paper's Discussion says "4.6 billion
+      parameters"; the authors' own Hugging Face checkpoint reports a safetensors total of
+      4,469,975,552 (4.47B) at https://huggingface.co/api/models/paige-ai/Prism2. The
+      released checkpoint plausibly omits training-only components -- paige-ai/Prism2-survival
+      reports 620,060,160, exactly the 541M perceiver plus 79M attention pooler the Methods
+      describe -- but the catalogue records the paper's figure and this note flags the gap
+      rather than reconciling it silently. The Supplementary Information PDF
+      (41591_2026_4521_MOESM1_ESM.pdf, read in full) does not restate a total: Supplementary
+      Tables S21-S24 give training hyperparameters, perceiver and projector layer dimensions
+      and the compute infrastructure but no parameter count, and Supplementary Table S1
+      compares slide-level foundation models by slide and report counts rather than by size.
+      So the 4.6B figure rests on that one Discussion sentence plus the per-component
+      counts in the Methods.
   added: {date: 2026-08, by: Leo Yin}
-
 - date: 2026-04
   title: PRET is a few-shot system for pan-cancer recognition without example training
   url: https://www.nature.com/articles/s43018-026-01141-2
@@ -72,14 +148,36 @@
   model:
     name: PRET
     repo: https://github.com/xmed-lab/PRET
+    # _source: https://www.nature.com/articles/s43018-026-01141-2 (Code availability,
+    #          free on the paywalled page): "All the involved model weights and Python
+    #          packages are available online. Our work is publicly available from GitHub".
+    #          The GitHub README names the Hugging Face mirror as the original release
+    #          ("This repo is originally relased at (HF Code)"), and that repo carries
+    #          model.pth. License from https://huggingface.co/api/models/yili7eli/PRET
+    #          cardData.license and the Apache-2.0 block at the end of the README.
+    weights: https://huggingface.co/yili7eli/PRET
+    license: Apache-2.0
+  # params: deliberately absent. No source states a count -- see the verify note.
+  # _source: PRET Supplementary Information PDF, "Algorithms of PRET / Feature extractor
+  #          based on pathological foundation models" (43018_2026_1141_MOESM1_ESM.pdf,
+  #          linked from the article page): "the default foundation model proposed by
+  #          Zhang et al. is trained via DINO in a self-supervised manner on TCGA without
+  #          labels using the backbone network of ViT-S/8". Six components confirmed by
+  #          Extended Data Fig. 1a: "extractor, tagger, miner, classifier, aggregator,
+  #          and post processor".
   backbone: >-
     Default feature extractor is a DINO-pretrained ViT-S/8 pathology encoder; PRET adds
     an in-context tagger, in-context classifier, instance miner, attention aggregator
     and postprocessor
   pretraining: [DINO, self-supervised]
+  # _source: same Supplementary Information section -- "we do not fine-tune these
+  #          parameters, since fixed parameters ensure that the model is flexible".
+  #          Extendable to UNI, GPFM, CONCH, TITAN, mSTAR and Prov-GigaPath (Fig. 2e).
   pretraining_detail: >-
-    Training-free for downstream tasks. The default encoder was pretrained
-    self-supervised on unlabeled TCGA pathology images.
+    Training-free for downstream tasks; the feature extractor holds all model parameters
+    and is never fine-tuned. The default encoder was pretrained self-supervised with DINO
+    on unlabelled TCGA pathology images, and the framework also runs on UNI, GPFM, CONCH,
+    TITAN, mSTAR and Prov-GigaPath.
   data:
     description: >-
       No task-specific training images for PRET itself. Evaluated on 4,484 WSIs across
@@ -92,16 +190,49 @@
   tasks_detail: Cancer screening, cancer subtyping, tumour segmentation, lymph node metastasis detection.
   modalities: [histopathology]
   performance:
+    # _source rows 1-3: published abstract, https://www.nature.com/articles/s43018-026-01141-2
+    #          (also PMID 41933183 via Europe PMC). Full text is paywalled; these are the
+    #          numbers the authors lead with and the only ones stated outside figures.
     - benchmark: 23 international benchmarks (4,484 WSIs)
       metric: AUC
       value: ">97%"
-      note: reached on 15 of the 23 benchmarks
+      note: reached on 15 of the 23 benchmarks; PRET outperforms existing approaches across 20 tasks
     - benchmark: 23 international benchmarks (4,484 WSIs)
       metric: maximum improvement over existing approaches
       value: "36.76%"
       note: abstract does not state which metric the improvement is measured in
+    - benchmark: Lymph node metastasis detection, 8 slide examples
+      metric: comparison against pathologists
+      value: "outperforms 11 pathologists"
+      note: >-
+        abstract calls this clinical-grade diagnostic performance but gives no underlying
+        AUC; the per-benchmark figures live in Figs. 4 and 5, which are behind the paywall
+    # _source: PRET Supplementary Table 2 ("Slide label visual prompt for pan-cancer
+    #          screening and subtyping tasks with multiple metrics"),
+    #          43018_2026_1141_MOESM1_ESM.pdf. 8-shot Average row: PRET 93.8+-1.9 AUC,
+    #          MI-SimpleShot 90.9+-2.2, KNN-Mean 90.9+-2.4, KNN-Max 83.5+-5.4,
+    #          MI-Prototype 64.1+-7.8.
+    - benchmark: Pan-cancer screening and subtyping, 11 datasets, slide-label prompt, 8-shot
+      metric: mean AUC
+      value: "93.8% (+-1.9)"
+      note: >-
+        Supplementary Table 2, mean over ESCC, PTC, CRC, GC, LC, BC, lymphoma, ESCA, SARC,
+        RCC and NSCLC; best baselines MI-SimpleShot and KNN-Mean both reach 90.9%
+  verify:
+    - >-
+      params genuinely not published. Routes tried 2026-08: Nature Cancer article page
+      (paywalled -- abstract, Extended Data captions, Data/Code availability are free, the
+      Main/Results/Methods are not); the Supplementary Information PDF, which IS free and
+      was read in full (the only occurrence of "parameter" is "we do not fine-tune these
+      parameters", with no count -- byte-identical from both media.springernature.com and
+      static-content.springer.com, 565,651 bytes); Europe PMC and NCBI efetch db=pmc (PMID 41933183 has no
+      PMCID); OpenAlex and Semantic Scholar (oa_status closed, no OA copy anywhere);
+      arXiv and bioRxiv (no preprint exists); the GitHub README and core/feature_extractor.py
+      (builds vits.vit_small with patch_size=8 -- an architecture name, not a count);
+      the Hugging Face repo yili7eli/PRET (gated, README unreadable, weights are a .pth so
+      Hugging Face publishes no safetensors parameter total). The HKUST institutional
+      repository record is behind a CAPTCHA and was not pursued.
   added: {date: 2026-08, by: Leo Yin}
-
 - date: 2026-03
   title: Confounding factors and biases abound when predicting molecular biomarkers from histological images
   url: https://www.nature.com/articles/s41551-026-01616-8
@@ -117,14 +248,26 @@
   model:
     name: HistBiases
     repo: https://github.com/imuhdawood/HistBiases
+  # params: correctly absent. Confirmed by full-text search -- see the verify note.
   backbone: >-
     Benchmarking study rather than a new model. Evaluates CLAM, SlideGraph-infinity and
     TITAN, with CTransPath and ShuffleNet patch encoders.
   pretraining: [self-supervised, weakly supervised]
+  # _source: https://www.nature.com/articles/s41551-026-01616-8 (Results and Methods, OA
+  #          full text): "ShuffleNet pretrained on ImageNet as a patch-level encoder to
+  #          extract the 1,024-dimensional feature representation"; "a 768-dimensional
+  #          self-supervised feature representation ... using CTransPath (a transformer-based
+  #          self-supervised model trained on histology images)".
   pretraining_detail: >-
-    CTransPath pretrained on histology via self-supervised learning; ShuffleNet
-    pretrained on ImageNet; TITAN trained on 330,000 image-text pairs.
+    CTransPath pretrained on histology via self-supervised learning, giving 768-dimensional
+    patch features; ShuffleNet pretrained on ImageNet, giving 1,024-dimensional patch
+    features; TITAN trained on 330,000 image-text pairs.
   data:
+    # _source: same article, Discussion: "significant interdependencies among molecular
+    #          factors across tissue types and datasets (TCGA, METABRIC, MSK and DFCI)";
+    #          Results: "we retrospectively analysed n = 8,221 patients with breast cancer
+    #          (BRCA), colorectal cancer (CRC), endometrial cancer (UCEC) and lung cancer
+    #          across four cohorts". Both existing values verified verbatim.
     description: >-
       H&E WSIs from TCGA, METABRIC, MSK and DFCI. Weakly supervised models trained on
       TCGA and validated on CPTAC and ABCTB.
@@ -136,29 +279,69 @@
     confounding/stratification analysis against biomarker interdependency, grade and TMB.
   modalities: [histopathology]
   performance:
+    # _source rows 1-4: https://www.nature.com/articles/s41551-026-01616-8, OA full text.
+    # Row 1: "In BRCA, CLAM with CTransPath features predicts receptor status with average
+    #        AUROCs of 0.87 and 0.90 for ER and 0.79 and 0.78 for PR, in cross-validation
+    #        (TCGA-BRCA) and independent validation (ABCTB) cohorts, respectively."
     - benchmark: TCGA-BRCA (cross-validation) and ABCTB (independent validation)
       metric: AUROC, ER status
       value: "0.87 / 0.90"
       note: CLAM with CTransPath features; the same models reach 0.79 / 0.78 for PR
+    # Row 2: "SlideGraph-infinity predicts colorectal tumours' MSI status ... with an AUROC
+    #        of 0.88 (0.873-0.886). However, when the same patient set is divided into
+    #        hypermutated and non-hypermutated subgroups ... the AUROC for MSI status
+    #        prediction drops to 0.72 within each subgroup."
     - benchmark: TCGA-CRC, MSI status
       metric: AUROC, whole cohort vs stratified subgroups
       value: "0.88 -> 0.72"
       note: >-
         SlideGraph-infinity; 0.88 (0.873-0.886) over the whole cohort falls to 0.72
         within both the hypermutated and the non-hypermutated subgroup
+    # Row 3: "In BRCA, grade-based ER and PR classifiers achieved AUROCs of 0.76 and 0.70
+    #        in the TCGA-BRCA cohort and 0.79 and 0.71 in the ABCTB cohort ... Grade also
+    #        predicts TP53 mutations with an AUROC of 0.75, nearly matching the 0.81
+    #        achieved by weakly supervised ML models." Fig. 6 caption confirms the
+    #        classifier is "a support vector machine classifier trained to predict a
+    #        biomarker/gene mutation from one-hot encoded histological grades".
     - benchmark: TCGA-BRCA, grade-only baseline
       metric: AUROC
       value: "ER 0.76, PR 0.70, TP53 0.75"
       note: >-
         SVM on one-hot pathologist-assigned grade; the weakly supervised TP53 predictor
-        reaches only 0.81, so the added value of the ML model is modest
-    - benchmark: TCGA-BRCA, PR status stratified by CDH1
-      metric: AUROC
-      value: "0.79 -> 0.50"
-      note: cohort-level PR predictor drops to chance in CDH1-mutant cases
+        reaches only 0.81, so the added value of the ML model is modest. ABCTB gives
+        0.79 for ER and 0.71 for PR.
+    # Row 4 REPLACES the previous "TCGA-BRCA, PR status stratified by CDH1 / 0.79 -> 0.50"
+    #        row, which is not supported anywhere in the full text -- see the verify note.
+    # _source: "WSI-based models infer BRAF and TP53 mutations in colorectal tumours
+    #          (TCGA-CRC) from WSIs with high confidence, achieving AUROCs 0.774
+    #          (0.764-0.785) and 0.717 (0.711-0.722) ... the TP53 predictor AUROC drops to
+    #          0.50 for high TMB cases."
+    - benchmark: TCGA-CRC, TP53 mutation stratified by tumour mutational burden
+      metric: AUROC, whole cohort vs high-TMB subgroup
+      value: "0.717 -> 0.50"
+      note: >-
+        0.717 (0.711-0.722) over the cohort falls to chance in high-TMB cases; the BRAF
+        predictor falls from 0.774 (0.764-0.785) to 0.65 in low-TMB cases
   note: Benchmarking and bias study, not a new foundation model.
+  verify:
+    - >-
+      params genuinely absent, and correctly so for a benchmarking study. Confirmed by
+      searching every published artifact: the open-access full text on nature.com (the word
+      "parameter" does not occur once), the Supplementary Information PDF
+      (41551_2026_1616_MOESM1_ESM.pdf, zero occurrences), the supplementary figures PDF
+      (MOESM2, zero occurrences) and the Peer Review File (MOESM3, whose twelve hits are all
+      "multi-parameter modelling", none about model size). The paper reports feature
+      dimensions instead -- 768 for CTransPath, 1,024 for ShuffleNet -- and never sizes the
+      models it evaluates.
+    - >-
+      the previous record carried a fourth performance row, "TCGA-BRCA, PR status
+      stratified by CDH1, AUROC 0.79 -> 0.50, cohort-level PR predictor drops to chance in
+      CDH1-mutant cases". It has been removed. The full text names CDH1 only as one of
+      several mutations in which the ER (not PR) predictor declines, and points at Fig. 4
+      without giving a number; the 0.50 in the article belongs to the TP53 predictor under
+      TMB stratification. If a maintainer can read Fig. 4 directly the row may be
+      recoverable, but it cannot be sourced from the text.
   added: {date: 2026-08, by: Leo Yin}
-
 - date: 2026-02
   title: >-
     Classification accuracy of a hierarchical molecular inference-based deep-learning
@@ -172,45 +355,236 @@
   model:
     name: Neuropath-AI
     weights: https://methylscape.ccr.cancer.gov/
+  # params: deliberately absent. No source states a count -- see the verify note.
+  # _source: this line has been rewritten to only what is sourced. Published abstract
+  #          (PMID 41643698, Europe PMC): the model was "trained ... to infer molecular
+  #          features from whole slide images and to use these to predict tumour types
+  #          with associated confidence scores", against reference labels "determined by
+  #          DNA methylation-based tumour classification to match one of 52 tumour types".
+  #          Authors' own SNO 2025 abstract (PMC12601992, open in PMC): "We trained
+  #          pan-CNS tumor models to predict DNA methylation and gene expression from
+  #          whole-slide images (WSIs). These molecular predictions were then used in a
+  #          hierarchical machine learning framework, termed Neuropath-AI, to predict nine
+  #          broad tumor families and 52 tumor types". The previous record's "UNI large
+  #          vision transformer plus MLPs and ensemble classifiers (random forest, SVM,
+  #          KNN, logistic regression)" could not be confirmed -- see the verify note.
   backbone: >-
-    UNI large vision transformer plus hierarchical submodules using MLPs and ensemble
-    classifiers (random forest, SVM, KNN, logistic regression)
+    Hierarchical molecular inference: deep-learning models predict DNA methylation and
+    gene expression from H&E whole-slide images, and a hierarchical classifier maps those
+    predictions to nine tumour families and 52 terminal CNS tumour types
   pretraining: [self-supervised]
   pretraining_detail: >-
-    WSI-pretrained UNI encoder followed by molecular inference-based hierarchical
+    WSI-pretrained encoder followed by molecular inference-based hierarchical
     classification.
   data:
-    description: Multi-institutional retrospective CNS tumour cohort
+    # _source: published abstract (PMID 41643698): "The Neuropath-AI model was trained on
+    #          5835 samples from the National Cancer Institute (NCI; USA), the Children's
+    #          Brain Tumor Network (USA), and the Digital Brain Tumour Atlas (Austria)";
+    #          "The test cohort comprised 5516 samples ... from the NCI, Northwestern
+    #          Medicine (USA), University of Pittsburgh Medical Center (USA), and
+    #          University College London (UK)"; "52 tumour types".
+    # The key was `whole_slide_images: 5835`, which the abstract does not support -- it
+    # counts samples, not slides. Renamed and the test cohort and type count added.
+    description: >-
+      Multi-institutional retrospective CNS tumour cohort. Training data from the NCI,
+      the Children's Brain Tumor Network and the Digital Brain Tumour Atlas; test data
+      from the NCI, Northwestern Medicine, UPMC and University College London, drawn from
+      laboratory archives between May 17, 2024 and May 13, 2025.
     scale:
-      whole_slide_images: 5835
+      training_samples: 5835
+      test_samples: 5516
+      tumour_types: 52
   tasks: [classification, mutation prediction, gene expression prediction]
   tasks_detail: >-
     CNS tumour family-level classification, 52 terminal CNS tumour types, IDH mutation
     prediction, inferred gene expression and DNA methylation.
   modalities: [histopathology]
   performance:
+    # _source: all four rows from the published structured abstract, PMID 41643698, read
+    #          via Europe PMC (https://www.ebi.ac.uk/europepmc/webservices/rest/search
+    #          ?query=DOI:"10.1016/S1470-2045(25)00661-8"&resultType=core). Findings:
+    #          "Family-level classifications were reached in 5299 (96%) of 5516 samples.
+    #          Predictions to one of the terminal classifications with at least moderate
+    #          confidence were reached for 4772 (87%) samples. The single highest-scoring
+    #          classification matched the reference label in 3817 ... (80% [95% CI 79-81])
+    #          of 4772 samples (balanced accuracy 66% [95% CI 63-70]). The two
+    #          highest-scoring classifications contained the reference label in 4103 ...
+    #          (86% [95% CI 85-87]) of 4772 samples (balanced accuracy 75% [95% CI 71-78])."
+    #          Corroborated by the authors' SNO 2025 abstract (PMC12601992): "moderate-
+    #          confidence (and above) predictions for 87% of test samples, for which it
+    #          achieved a diagnostic accuracy of 80% for the top-1 prediction and 86%
+    #          accuracy for a top-2 predictions".
+    # The previous record split top-1/top-2 accuracy and balanced accuracy across five
+    # rows and omitted the 96% family-level coprimary endpoint; folded to four rows.
     - benchmark: Multi-institutional CNS tumour test cohort (5,516 samples)
-      metric: sample coverage
+      metric: family-level sample coverage
+      value: "96%"
+      note: family-level classifications reached in 5,299 of 5,516 samples
+    - benchmark: Multi-institutional CNS tumour test cohort (5,516 samples)
+      metric: terminal-classification sample coverage
       value: "87%"
       note: 4,772 samples reached a terminal classification at moderate confidence or better
     - benchmark: Multi-institutional CNS tumour test cohort (4,772 covered samples)
       metric: top-1 prediction accuracy
       value: "80%"
-      note: 95% CI 79-81
-    - benchmark: Multi-institutional CNS tumour test cohort (4,772 covered samples)
-      metric: top-1 balanced accuracy
-      value: "66%"
-      note: 95% CI 63-70
+      note: 3,817 of 4,772 samples, 95% CI 79-81; balanced accuracy 66% (95% CI 63-70)
     - benchmark: Multi-institutional CNS tumour test cohort (4,772 covered samples)
       metric: top-2 prediction accuracy
       value: "86%"
-      note: 95% CI 85-87
-    - benchmark: Multi-institutional CNS tumour test cohort (4,772 covered samples)
-      metric: top-2 balanced accuracy
-      value: "75%"
-      note: 95% CI 71-78
+      note: 4,103 of 4,772 samples, 95% CI 85-87; balanced accuracy 75% (95% CI 71-78)
+  verify:
+    - >-
+      params genuinely not published in anything reachable. Routes tried 2026-08:
+      thelancet.com full text and the ScienceDirect DOI (Cloudflare interstitial, HTTP 403
+      to both curl and WebFetch -- not bypassed); Europe PMC and NCBI efetch db=pmc
+      (PMID 41643698 has no PMCID and no PMC deposit despite NIH intramural funding, so
+      it is presumably still embargoed); OpenAlex and Semantic Scholar (oa_status closed,
+      openAccessPdf empty); GitHub (no official repository -- every "neuropath-ai" hit is
+      an unrelated ed-tech or careers project); methylscape.ccr.cancer.gov, whose About
+      text describes NeuroPathAI only in prose and whose analysis form is login-gated;
+      no preprint on arXiv, bioRxiv or medRxiv. The only author-published open artifact
+      is the SNO 2025 abstract, PMC12601992, which states no parameter count either.
+    - >-
+      backbone partly unconfirmed. The previous record described "UNI large vision
+      transformer plus hierarchical submodules using MLPs and ensemble classifiers (random
+      forest, SVM, KNN, logistic regression)". None of UNI, the MLP submodules or the
+      ensemble classifiers appears in the published abstract, in the authors' SNO abstract
+      or on the MethylScape site, and the Methods section is unreachable, so the line has
+      been narrowed to what those sources do support. Restore the detail if a maintainer
+      can read the full text and cite it.
+    - >-
+      training-cohort size differs between the authors' own reports: the Lancet Oncology
+      abstract says the model was trained on 5,835 samples, while the SNO 2025 abstract
+      (PMC12601992) says 5,715 histopathology samples, of which 2,988 had paired DNA
+      methylation profiling and 848 paired RNA sequencing. The record carries the
+      published journal figure.
+    - >-
+      model.weights points at https://methylscape.ccr.cancer.gov/, which is a login-gated
+      NIH analysis service ("Research use only. Clinical validation or clinical deployment
+      of NIH-developed software requires separate licensing through NIH"), not a weight
+      download. The abstract's "The model will be made publicly available" has no
+      identified artifact yet.
   added: {date: 2026-08, by: Leo Yin}
-
+- date: 2026-02
+  title: Knowledge-enhanced pretraining for vision-language pathology foundation model on cancer diagnosis
+  url: https://www.cell.com/cancer-cell/fulltext/S1535-6108(26)00058-9
+  doi: 10.1016/j.ccell.2026.01.019
+  venue: Cancer Cell
+  authors:
+    first: {name: Xiao Zhou}
+    last:
+      name: Weidi Xie
+      scholar: https://scholar.google.com/citations?user=Vtrqj4gAAAAJ&hl=zh-CN
+  model:
+    name: KEEP
+    repo: https://github.com/MAGIC-AI4Med/KEEP
+    # _source: https://huggingface.co/api/models/Astaxanthin/KEEP
+    weights: https://huggingface.co/Astaxanthin/KEEP
+    params_note: >-
+      414M is the released checkpoint's own total, not a figure from the paper: the
+      HuggingFace API reports safetensors total 414,210,816 for Astaxanthin/KEEP and the
+      model page renders "Model size 0.4B params". It covers both towers (ViT-L/16 vision
+      encoder plus the BERT-family text encoder) at F32. Neither the Cancer Cell abstract
+      nor the arXiv preprint states a parameter count anywhere.
+  # _source: https://huggingface.co/api/models/Astaxanthin/KEEP (safetensors total
+  # 414,210,816) and https://huggingface.co/Astaxanthin/KEEP ("Model size 0.4B params")
+  params: 414M
+  # _source: ARXIV 2412.13126v2 methods -- "KEEP consists of a vision encoder based on the
+  # backbone of ViT-L-16 and a text encoder based on the architecture of PubMedBERT. We
+  # adopt UNI to initialize the image encoder ... the text encoder of KEEP is initialized
+  # by the pre-trained knowledge encoder."
+  # Corroborated by HF config.json: vision hidden 1024 / 24 layers / patch 16 / img 224,
+  # text model_type bert, hidden 768 / 12 layers / vocab 30522.
+  # Replaces the vaguer "ViT-L/16 vision encoder with a BERT text encoder".
+  backbone: >-
+    ViT-L/16 vision encoder initialised from UNI, paired with a PubMedBERT text encoder
+    initialised from a disease-knowledge encoder
+  # _source: pretraining terms -- ARXIV 2412.13126v2 methods. "CLIP" dropped: the preprint
+  # never calls the objective CLIP (its only CLIP mention is a BioCLIP citation for the
+  # hierarchical disease chains); the loss is a group-level metric-learning objective.
+  pretraining: [contrastive]
+  pretraining_detail: >-
+    Knowledge-enhanced vision-language pretraining. A BERT-family knowledge encoder is
+    first trained by metric learning over a disease knowledge graph, then used to align
+    visual and textual representations within hierarchical semantic spaces, so alignment
+    happens at the level of a semantic group rather than a single noisy image-text pair.
+  data:
+    # _source: EPMC abstract (PMID 41720085), which matches the arXiv v2 abstract verbatim
+    description: >-
+      Pathology image-text pairs from OpenPath and Quilt-1M, reorganized into
+      semantically structured groups aligned with disease ontology hierarchies
+    scale:
+      # _source: EPMC abstract -- "143,000 semantically structured groups"
+      semantic_groups: 143000
+      # _source: EPMC abstract -- "a comprehensive disease knowledge graph encompassing
+      # 11,454 diseases and 139,143 attributes"
+      diseases: 11454
+      disease_attributes: 139143
+  tasks: [segmentation, detection, subtyping, retrieval, classification]
+  tasks_detail: >-
+    Zero-shot slide-level cancer region segmentation, cancer detection and subtyping;
+    tile-level cross-modal retrieval and zero-shot image classification.
+  modalities: [histopathology, text]
+  performance:
+    # _source: GH README "What is KEEP?" -- "an average sensitivity of 89.8% for cancer
+    # detection across 7 cancer types".
+    # Cross-check ARXIV 2412.13126v2 results: "it achieves an average sensitivity of 0.898
+    # (at 0.95 specificity) in tumor detection across 7 cancer types". AGREE. The
+    # specificity operating point comes from the preprint sentence.
+    - benchmark: Zero-shot cancer detection, 7 CPTAC cohorts
+      metric: average sensitivity at 0.95 specificity
+      value: "0.898"
+      note: reported by the authors as 89.8% in the repository README
+    # _source: GH README, "Zero-shot Cancer Subtyping (BACC)" table, EBRAINS row: KEEP
+    # 0.456 vs CONCH 0.371.
+    # Cross-check ARXIV v2: "surpasses CONCH by 8.5 points in balanced accuracy for
+    # subtyping 30 rare brain cancers" -- 0.456 - 0.371 = 0.085. AGREE exactly.
+    - benchmark: EBRAINS, zero-shot subtyping (30 rare brain cancer types)
+      metric: balanced accuracy
+      value: "0.456"
+      note: next-best model CONCH 0.371
+    # _source: GH README, "Zero-shot Cancer Region Segmentation (DICE)" table, AGGC22 row:
+    # KEEP 0.530 vs CONCH 0.449.
+    # Cross-check ARXIV v2: "an average DICE score improvement of 6.8 and 8.1 points over
+    # ... CONCH on the CAMELYON16 and AGGC22 datasets" -- 0.530 - 0.449 = 0.081. AGREE exactly.
+    - benchmark: AGGC22, zero-shot cancer region segmentation
+      metric: DICE
+      value: "0.530"
+      note: next-best model CONCH 0.449; before post-processing
+    # _source: GH README, same segmentation table, CAMELYON16 row: KEEP 0.361 vs CONCH 0.292.
+    # Cross-check ARXIV v2 gives the gap as 6.8 points; the README rows differ by 6.9.
+    # MINOR DISAGREEMENT, recorded rather than resolved -- see the note and verify.
+    - benchmark: CAMELYON16, zero-shot cancer region segmentation
+      metric: DICE
+      value: "0.361"
+      note: >-
+        next-best model CONCH 0.292, a 6.9-point gap; the preprint states 6.8 points, so
+        one of the two is rounded differently
+  verify:
+    - >-
+      Date resolved: Europe PMC gives firstPublicationDate 2026-02-19 and print date
+      2026-04-01 (Cancer Cell 44(4):777-791.e7). 2026-02 is the online-first month, which is
+      what this catalogue records, so the earlier "Crossref says 2026-04" note is settled.
+    - >-
+      The Cancer Cell full text is still unreachable and no performance row here was read
+      from it. cell.com and sciencedirect.com both answer 403 to any request (no CAPTCHA was
+      attempted); there is no PMCID and Europe PMC holds the abstract only; OpenAlex,
+      Unpaywall and Semantic Scholar all report hybrid CC BY-NC-ND but list only the
+      publisher DOI as the OA location, with no PDF. The performance rows therefore come
+      from the authors' own GitHub README, which links to the Cancer Cell article as the
+      complete benchmark set, cross-checked against arXiv 2412.13126v2 -- posted 27 Jan 2026
+      with the note "updated experimental results" and carrying an abstract byte-identical to
+      the published one, so almost certainly the accepted version. Three of the four rows
+      match the preprint's stated margins exactly; CAMELYON16 differs by 0.1 point.
+    - >-
+      The README warns "These results will be updated with each new iteration of KEEP", so
+      these numbers may drift from the published tables over time. Re-read them against the
+      Cancer Cell PDF when someone has browser access.
+    - >-
+      params 414M is the released checkpoint's parameter total from HuggingFace, not a
+      number the paper states, and it counts both towers. Not comparable with a
+      tile-encoder-only count.
+  added: {date: 2026-08, by: Leo Yin}
 - date: 2026-02
   title: >-
     Development and validation of a computational histology artificial
@@ -228,20 +602,39 @@
       scholar: https://scholar.google.com/citations?user=6aEaHzcAAAAJ&hl=en
   model:
     name: CHAI
-  backbone: Not stated in the paper
+  # _source: not published. See the verify note for the routes tried.
+  params: null
+  # _source: EPMC abstract (PMID 41671529). Replaces "Not stated in the paper", which
+  # asserted something about a full text nobody in this repo has been able to read.
+  backbone: >-
+    Not described in any reachable source; the abstract says only that the CHAI platform
+    extracts quantitative histomorphologic features from whole-slide images
   pretraining: [supervised]
+  # _source: EPMC abstract (PMID 41671529)
   pretraining_detail: >-
-    Pan-cancer H&E slides are patched and merged with indication labels to form a base
-    model for cell and tissue classification.
+    Histomorphologic features extracted from H&E whole-slide images of diagnostic
+    biopsies were screened in a development cohort for association with differential
+    time to next treatment or death between F-chemo- and G-chemo-treated patients; the
+    resulting continuous score was dichotomised and the threshold locked before validation.
   data:
-    description: Pan-cancer H&E-stained slides
+    # _source: EPMC abstract (PMID 41671529)
+    description: >-
+      H&E-stained diagnostic biopsy whole-slide images from patients with advanced
+      pancreatic ductal adenocarcinoma
     scale:
-      whole_slide_images: 25000
+      # _source: EPMC abstract -- "There were 477 patients (development: 178; validation: 299)"
+      patients: 477
+      development_patients: 178
+      validation_patients: 299
   tasks: [biomarker prediction, treatment response]
+  # _source: EPMC abstract (PMID 41671529)
   tasks_detail: >-
-    Quantifies histomorphologic features of the cancer and its microenvironment along
-    dimensions defined by the hallmarks of cancer, used to select chemotherapy.
+    Predicts which of two first-line chemotherapy backbones -- fluoropyrimidine-based
+    (F-chemo) or gemcitabine-based (G-chemo) -- a patient will benefit from, reported as a
+    binary F-pref or G-pref result.
   modalities: [histopathology]
+  # _source (all four rows): EPMC abstract (PMID 41671529), quoted verbatim.
+  # Unchanged from the existing record -- every figure re-checked against the abstract.
   performance:
     - benchmark: Validation cohort (COMPASS + Know Your Tumor), F-pref patients
       metric: median overall survival
@@ -254,113 +647,32 @@
     - benchmark: Validation cohort (COMPASS + Know Your Tumor), G-pref patients
       metric: median time to next treatment or death
       value: "9.6 vs 7.2 months"
-      note: G-chemo vs F-chemo, n = 126, P = .038; OS showed no difference (P = .5)
+      note: >-
+        G-chemo vs F-chemo, n = 126, P = .038; OS showed no difference (14.3 vs 12.4
+        months, P = .5)
     - benchmark: Validation cohort, propensity score-weighted
       metric: biomarker-treatment interaction
       value: "TNTD P < .001, OS P = .005"
-  added: {date: 2026-08, by: Leo Yin}
-
-- date: 2026-02
-  title: Knowledge-enhanced pretraining for vision-language pathology foundation model on cancer diagnosis
-  url: https://www.cell.com/cancer-cell/fulltext/S1535-6108(26)00058-9
-  doi: 10.1016/j.ccell.2026.01.019
-  venue: Cancer Cell
-  authors:
-    first: {name: Xiao Zhou}
-    last:
-      name: Weidi Xie
-      scholar: https://scholar.google.com/citations?user=Vtrqj4gAAAAJ&hl=zh-CN
-  model:
-    name: KEEP
-    repo: https://github.com/MAGIC-AI4Med/KEEP
-  backbone: ViT-L/16 vision encoder with a BERT text encoder
-  pretraining: [contrastive, CLIP]
-  pretraining_detail: >-
-    Knowledge-enhanced vision-language pretraining using semantic-level alignment via
-    metric learning within semantic groups guided by a disease knowledge graph.
-  data:
-    description: >-
-      Pathology image-text pairs from OpenPath and Quilt-1M, reorganized into
-      semantically structured groups
-    scale:
-      semantic_groups: 143000
-  tasks: [segmentation, detection, subtyping, retrieval, classification]
-  tasks_detail: >-
-    Zero-shot slide-level cancer region segmentation, cancer detection and subtyping;
-    tile-level cross-modal retrieval and zero-shot image classification.
-  modalities: [histopathology, text]
   verify:
     - >-
-      Crossref dates this 2026-04 (Cancer Cell 44(4)) against the 2026-02 recorded
-      here, which is likely the online-first month. Left at 2026-02; correct it if
-      the issue date is what we want.
+      params and backbone are not published anywhere reachable. Routes tried: ascopubs.org
+      article, /doi/full and /doi/pdfdirect (all HTTP 403 bot block -- no CAPTCHA was
+      attempted); Europe PMC (abstract only, no PMCID, fullTextXML 404); OpenAlex and
+      Unpaywall (both report hybrid CC BY-NC-ND but give only the publisher DOI as the OA
+      location, no PDF); Semantic Scholar openAccessPdf (same publisher DOI); no preprint,
+      no code repository, no model release. A third-party PDF mirror surfaced in search
+      would not load (connection timed out twice). CHAI is a commercial platform from Valar
+      Labs; the four open-access sibling CHAI papers in PMC (PMC12839055, PMC12718547,
+      PMC12708020, PMC12907750) describe it only qualitatively and state no architecture
+      or parameter count.
     - >-
-      performance and params not filled -- the abstract states no numeric results (only
-      dataset counts: 18 public benchmarks, 4 institutional rare cancer datasets) and no
-      parameter count. Retried 2026-08: Europe PMC holds the abstract only and there is
-      no PMC deposit; cell.com and ScienceDirect both answer with a bot-verification
-      challenge, although OpenAlex lists the article as hybrid open access, so a reader
-      with browser access should be able to fill both fields. The arXiv preprint
-      2412.13126 carries results tables; do not copy them across without checking they
-      survived into this Cancer Cell version.
+      REMOVED from this record: data.scale.whole_slide_images 25000, and a
+      pretraining_detail claiming pan-cancer slides are "merged with indication labels to
+      form a base model for cell and tissue classification". Neither could be traced to any
+      source. Checked: this paper's abstract, all four OA sibling CHAI papers, the earlier
+      Cell Rep. Med. CHAI paper (PMC10140610), and Valar Labs' own product page, which
+      quotes "500,000+ annotations" and no slide count. Restore only against the full text.
   added: {date: 2026-08, by: Leo Yin}
-
-- date: 2025-11
-  title: SMMILe enables accurate spatial quantification in digital pathology using multiple-instance learning
-  url: https://www.nature.com/articles/s43018-025-01060-8
-  doi: 10.1038/s43018-025-01060-8
-  venue: Nat. Cancer
-  authors:
-    first:
-      name: Zeyu Gao
-      scholar: https://scholar.google.com/citations?hl=zh-CN&user=CeP6dkcAAAAJ
-    last:
-      name: Mireia Crispin-Ortuzar
-      scholar: https://scholar.google.com/citations?hl=en&user=TRZzLJgAAAAJ
-  model:
-    name: SMMILe
-    repo: https://github.com/ZeyuGaoAi/SMMILe
-    params_note: >-
-      The paper reports SMMILe's own cost as "1.50 GFLOPS, 1.20 M parameters" for
-      1,024-dimension patch embeddings; the frozen ResNet-50/CONCH patch encoder is
-      not counted, so this is not comparable to a tile-encoder parameter count.
-  params: 1.2M
-  backbone: >-
-    ResNet-50 and CONCH patch encoders with an instance-based multiple-instance-learning
-    architecture using superpatch and refinement modules
-  pretraining: [weakly supervised]
-  pretraining_detail: >-
-    Feature extraction with pretrained encoders (ImageNet ResNet-50, pathology
-    foundation model CONCH), then weakly supervised MIL training with slide-level labels.
-  data:
-    description: 8 datasets covering 6 cancer types
-    scale:
-      whole_slide_images: 3850
-      datasets: 8
-      cancer_types: 6
-  tasks: [classification, detection, subtyping, grading]
-  tasks_detail: >-
-    WSI-level classification and patch-level spatial quantification, including metastasis
-    detection, subtype prediction and grading.
-  modalities: [histopathology]
-  performance:
-    - benchmark: Ovarian
-      metric: macro AUC
-      value: "94.11%"
-      note: WSI classification with ImageNet ResNet-50 patch embeddings
-    - benchmark: Prostate
-      metric: macro AUC
-      value: "90.92%"
-      note: WSI classification with ImageNet ResNet-50 patch embeddings
-    - benchmark: Gastric Endoscopy
-      metric: macro AUC
-      value: "92.75%"
-      note: WSI classification with ImageNet ResNet-50 patch embeddings
-    - benchmark: Breast, spatial quantification
-      metric: spatial F1 gain over second-best method DSMIL
-      value: "+23.56%"
-  added: {date: 2026-08, by: Leo Yin}
-
 - date: 2025-11
   title: A multimodal whole-slide foundation model for pathology
   url: https://www.nature.com/articles/s41591-025-03982-3
@@ -377,51 +689,182 @@
     name: TITAN
     repo: https://github.com/mahmoodlab/TITAN
     weights: https://huggingface.co/MahmoodLab/TITAN
+    params_note: >-
+      48.5M is the slide encoder and excludes the frozen CONCH v1.5 patch encoder, so it is
+      not comparable with tile-encoder counts such as Virchow's 632M. The released
+      checkpoint on HuggingFace reports a safetensors total of 158,866,176, which is a
+      different scope -- that file also carries the text encoder and multimodal decoder used
+      for zero-shot and report generation, and ships the patch encoder separately as
+      conch_v1_5_pytorch_model.bin. The repo is gated, so its config.json and model card
+      could not be read to confirm the split.
+  # _source: PMC12618242 -- "TITAN and TITANV, with 48.5 million and 42.1 million
+  # parameters, outperform heavier slide encoders PRISM and GigaPath, with 99.0 million and
+  # 86.3 million parameters". Unchanged.
   params: 48.5M
   backbone: ViT slide encoder (Transformer-based Image and Text Alignment Network) over CONCH v1.5 patch features
-  pretraining: [self-supervised, contrastive, CLIP]
+  # _source: PMC12618242 -- "we apply the iBOT framework for vision-only pretraining of
+  # TITAN on the 2D feature grid" (stage 1) and "we use contrastive captioners (CoCa) as the
+  # pretraining strategy" (stages 2-3).
+  # CHANGED from [self-supervised, contrastive, CLIP]: the paper's single CLIP mention is
+  # about zero-shot inference ("we adopted the method described in CLIP to use the
+  # similarities between a given slide and the text prompts"), not pretraining.
+  pretraining: [self-supervised, iBOT, CoCa, contrastive]
   pretraining_detail: >-
-    Visual self-supervised pretraining followed by vision-language alignment against
-    pathology reports and synthetic captions generated by a pathology multimodal copilot.
+    Three stages: iBOT self-supervised pretraining on a 2D grid of patch features, then
+    CoCa alignment against synthetic ROI captions generated by the PathChat pathology
+    copilot, then alignment against whole-slide pathology reports.
   data:
     description: Whole-slide images with paired pathology reports and synthetic captions
     scale:
+      # _source: PMC12618242 -- "an internal dataset (termed Mass-340K) consisting of
+      # 335,645 WSIs and 182,862 medical reports"
       whole_slide_images: 335645
+      pathology_reports: 182862
+      # _source: PMC12618242 -- "we pretrain TITANV with 423,122 pairs of 8,192 x 8,192
+      # pixels ROIs and synthetic captions"
       synthetic_captions: 423122
   tasks: [classification, subtyping, retrieval, report generation, survival prediction]
   tasks_detail: >-
     Slide-level representation without fine-tuning, rare disease recognition, cancer
     outcome prediction and pathology report generation.
   modalities: [histopathology, text]
+  # ALL FIVE ROWS REPLACED. The previous rows were the relative gains the running text
+  # quotes; these are the absolute values from the supplementary tables, read from
+  # SUPPL 41591_2025_3982_MOESM1_ESM.pdf (Supplementary Tables 1-127).
+  # Fetched two ways with identical MD5 d4a3f8e4186b48a1a16fea1377a0b5b2: the EPMC
+  # supplementaryFiles zip for PMC12618242, and
+  # https://static-content.springer.com/esm/art%3A10.1038%2Fs41591-025-03982-3/MediaObjects/41591_2025_3982_MOESM1_ESM.pdf
   performance:
-    - benchmark: Linear probe, morphological subtyping tasks
-      metric: gain over next-best slide model PRISM
-      value: "+8.4%"
-      note: average over multiclass (balanced accuracy) and binary subtyping (AUROC) tasks
-    - benchmark: Zero-shot multiclass classification
-      metric: balanced accuracy gain over PRISM
-      value: "+56.52%"
-      note: binary subtyping AUROC gain reported as +13.8%
-    - benchmark: Rare-cancer retrieval
-      metric: Accuracy@K gain over PRISM
-      value: "+14.8%"
-      note: MVAcc@K gain reported as +18.1%
-    - benchmark: Disease-specific survival prediction
-      metric: concordance index gain over CHIEF
-      value: "+3.62%"
+    # _source: SUPPL Supplementary Table 22 (linear probing, tumour subtype C = 32,
+    # TCGA-UT-8K), logistic regression column: TITAN 0.832+/-0.0056, PRISM 0.774+/-0.0062.
+    - benchmark: TCGA-UT-8K, linear probe tumour subtyping (32 classes)
+      metric: balanced accuracy
+      value: "0.832"
+      note: logistic regression, +/- 0.0056; next-best slide encoder PRISM 0.774
+    # _source: SUPPL Supplementary Table 24 (linear probing, OncoTree code C = 108, OT108).
+    - benchmark: OT108, linear probe OncoTree classification (108 classes)
+      metric: balanced accuracy
+      value: "0.587"
+      note: logistic regression, +/- 0.0103; next-best slide encoder PRISM 0.508
+    # _source: SUPPL Supplementary Table 97 (zero-shot, tumour subtype C = 32, TCGA-UT-8K):
+    # TITAN 0.761+/-0.0063 bal. acc., 0.989 AUROC; PRISM 0.536+/-0.0061.
+    - benchmark: TCGA-UT-8K, zero-shot tumour subtyping (32 classes)
+      metric: balanced accuracy
+      value: "0.761"
+      note: +/- 0.0063; AUROC 0.989; PRISM 0.536
+    # _source: SUPPL Supplementary Table 117 (slide retrieval, rare cancer C = 43,
+    # Rare-Cancer): TITAN Top-1 0.539+/-0.0100, Top-3 0.725, Top-5 0.804; PRISM Top-1 0.449.
+    - benchmark: Rare-Cancer slide retrieval (43 rare types in a 186-class database)
+      metric: Top-1 accuracy
+      value: "0.539"
+      note: +/- 0.0100; Top-5 0.804; next-best slide encoder PRISM 0.449
+    # _source: SUPPL Supplementary Table 64 (disease-specific survival, c-index, six TCGA
+    # cohorts), "Avg." row: TITAN 0.716, TITANV 0.711, CHIEF 0.691.
+    - benchmark: Disease-specific survival, six TCGA cohorts
+      metric: concordance index (mean over cohorts)
+      value: "0.716"
+      note: next-best model CHIEF 0.691, the +3.62% quoted in the running text
   verify:
     - >-
-      performance rows are the relative gains over the next-best baseline that the paper
-      states in running text. Absolute TITAN scores sit in the figures and supplementary
-      tables, which were not readable from the accessible full text -- replace these rows
-      with absolute values if someone has the PDF.
+      Supplementary tables in this PDF are captioned BELOW the table, so "Supplementary
+      Table N" is the block preceding the caption line, and a naive caption-then-table read
+      shifts every result by one table. Established three ways: the EBRAINS class-prompt
+      list sits above the Table 94 caption that names it; Table 64's c-index average
+      (0.716 vs CHIEF 0.691) reproduces the running text's "+3.62%"; and Table 117's Acc@K
+      and MVAcc@K columns reproduce the running text's "+14.8%" and "+18.1%" over PRISM.
+      Anyone re-reading this supplement should re-check that mapping before quoting a number.
     - >-
-      params 48.5M is quoted by the paper for TITAN ("TITAN and TITAN V, with 48.5 million
-      and 42.1 million parameters"). It is a slide-encoder count and excludes the CONCH
-      v1.5 patch encoder, so it is not comparable with tile-encoder counts such as
-      Virchow's 632M.
+      Absolute figures for the two headline gains the abstract leads with could not be
+      pinned to a single table and were left out: the "+8.4%" linear-probe figure is an
+      average over many subtyping tasks, and the "+56.52%" zero-shot figure is an average
+      over several multiclass tasks. The per-task absolutes above are exact.
   added: {date: 2026-08, by: Leo Yin}
-
+- date: 2025-11
+  title: SMMILe enables accurate spatial quantification in digital pathology using multiple-instance learning
+  url: https://www.nature.com/articles/s43018-025-01060-8
+  doi: 10.1038/s43018-025-01060-8
+  venue: Nat. Cancer
+  authors:
+    first:
+      name: Zeyu Gao
+      scholar: https://scholar.google.com/citations?hl=zh-CN&user=CeP6dkcAAAAJ
+    last:
+      name: Mireia Crispin-Ortuzar
+      scholar: https://scholar.google.com/citations?hl=en&user=TRZzLJgAAAAJ
+  model:
+    name: SMMILe
+    repo: https://github.com/ZeyuGaoAi/SMMILe
+    # _source: PMC12727519 main text and SUPPL 43018_2025_1060_MOESM1_ESM.pdf sec. 7 +
+    # Supplementary Table 10. Verified: 1.2M is the MIL head only.
+    params_note: >-
+      The paper reports SMMILe's own cost as "1.50 GFLOPS, 1.20 M parameters" for
+      1,024-dimension patch embeddings; the frozen ResNet-50/CONCH patch encoder is
+      not counted, so this is not comparable to a tile-encoder parameter count.
+  # _source: PMC12727519 -- "SMMILe's compute cost (1.50 GFLOPS, 1.20 M parameters) for
+  # 1,024-dimension patch embeddings was comparable to baselines such as ABMIL (0.71
+  # GFLOPS, 0.79 M) and TransMIL (2.70 GFLOPS, 2.67 M)".
+  # Corroborated by SUPPL Supplementary Table 10 ("SMMILe 1.50 1.20M 18.30MB") and by
+  # supplementary sec. 7 "Computational Cost", which states the same figures in prose and
+  # confirms the exclusion: the comparison is against the ABMIL and TransMIL heads at a
+  # fixed patch embedding dimension of 1024. AGREE. Unchanged.
+  params: 1.2M
+  backbone: >-
+    ResNet-50 and CONCH patch encoders with an instance-based multiple-instance-learning
+    architecture using superpatch and refinement modules
+  pretraining: [weakly supervised]
+  pretraining_detail: >-
+    Feature extraction with pretrained encoders (ImageNet ResNet-50, pathology
+    foundation model CONCH), then weakly supervised MIL training with slide-level labels.
+  data:
+    description: 8 datasets covering 6 cancer types
+    scale:
+      # _source: EPMC abstract (PMID 41258398) -- "evaluate it across 6 cancer types, 3
+      # highly diverse classification tasks and 8 datasets involving 3,850 whole-slide
+      # images". All three unchanged, now verified.
+      whole_slide_images: 3850
+      datasets: 8
+      cancer_types: 6
+  tasks: [classification, detection, subtyping, grading]
+  tasks_detail: >-
+    WSI-level classification and patch-level spatial quantification, including metastasis
+    detection, subtype prediction and grading.
+  modalities: [histopathology]
+  performance:
+    # _source (rows 1-3): PMC12727519 -- "SMMILe achieves AUC scores of 94.11%, 90.92% and
+    # 92.75% on the Ovarian, Prostate and Gastric Endoscopy datasets, respectively,
+    # exceeding the second-best methods by margins of 2.20%, 2.90% and 11.18%".
+    # Corroborated value-by-value against SUPPL Supplementary Table 2 (WSI classification,
+    # macro AUC %, ResNet-50 block), which also supplies the standard deviations. AGREE.
+    - benchmark: Ovarian (UBC-OCEAN)
+      metric: macro AUC
+      value: "94.11%"
+      note: WSI classification with ImageNet ResNet-50 patch embeddings; +/- 1.13, second-best +2.20
+    - benchmark: Prostate
+      metric: macro AUC
+      value: "90.92%"
+      note: WSI classification with ImageNet ResNet-50 patch embeddings; +/- 2.68, second-best +2.90
+    - benchmark: Gastric Endoscopy (IH-ESD)
+      metric: macro AUC
+      value: "92.75%"
+      note: WSI classification with ImageNet ResNet-50 patch embeddings; +/- 3.59, second-best +11.18
+    # _source: SUPPL Supplementary Table 6 (spatial quantification, macro F1 %, ResNet-50
+    # block, Breast row): SMMILe 66.47+/-10.21, DSMIL 42.91+/-19.53.
+    # CHANGED from the relative row "+23.56%": the main text's claim that SMMILe
+    # "outperforms DSMIL by 23.56% in spatial F1 score" is exactly 66.47 - 42.91, which both
+    # identifies the table and corroborates the absolute pair.
+    - benchmark: Breast (Camelyon16), spatial quantification
+      metric: spatial macro F1
+      value: "66.47%"
+      note: >-
+        ImageNet ResNet-50 patch embeddings; +/- 10.21, second-best method DSMIL 42.91%,
+        the 23.56-point gap quoted in the running text
+  verify:
+    - >-
+      Supplementary tables in this PDF are captioned BELOW the table, so "Supplementary
+      Table N" is the block preceding the caption line. Confirmed here by the spatial F1
+      row: the main text's 23.56-point gap equals 66.47 - 42.91 in the block above the
+      Table 6 caption.
+  added: {date: 2026-08, by: Leo Yin}
 - date: 2025-01
   title: A vision-language foundation model for precision oncology
   url: https://www.nature.com/articles/s41586-024-08378-w
@@ -437,17 +880,48 @@
   model:
     name: MUSK
     repo: https://github.com/lilab-stanford/MUSK
-  backbone: BEiT-3
+    # _source: https://huggingface.co/api/models/xiangjx/musk (linked from the repo README)
+    weights: https://huggingface.co/xiangjx/musk
+    # _source: https://huggingface.co/api/models/xiangjx/musk -> cardData.license
+    license: CC-BY-NC-ND-4.0
+  # _source: Supplementary Table 16 "Model configuration and training recipe of MUSK",
+  #   row "Parameters ... Small 72M / Base 222M / Large 675M", in
+  #   41586_2024_8378_MOESM1_ESM.pdf. Corroborated in the same supplement's
+  #   "Model Capacity" text ("large (675 million parameters, 222G FLOPS)") and in
+  #   Supplementary Table 17 ("MUSK-large (675M/222G)"). MUSK-large is the paper's
+  #   final model: "in this study, we chose MUSK-large as our final model".
+  params: 675M
+  # _source: PMC12295649 Methods + Fig. 1 caption + Supplementary Table 16 (Large column)
+  backbone: >-
+    BEiT-3-style multimodal transformer -- shared self-attention blocks with two
+    independent vision and language experts; 24 layers, hidden size 1024, FFN 4096,
+    16 attention heads, 384x384 input at 16x16 patches
   pretraining: [MIM, contrastive]
   pretraining_detail: Masked image modelling followed by vision-language contrastive alignment.
   data:
-    description: WSIs plus the QUILT-1M and PathAsst image-text corpora
+    # _source: PMC12295649 "Multimodal Data Curation for Pretraining"
+    description: >-
+      50 million TCGA H&E image patches from ~33,000 WSIs and 1 billion text tokens
+      from PubMed Central OA articles for masked pretraining, then ~1 million
+      image-text pairs from Quilt1M (802k) and PathAsst (207k) for contrastive alignment
     scale:
+      # _source: PMC12295649 -- all five counts stated verbatim in Methods/abstract
+      image_patches: 50000000
       whole_slide_images: 33000
-  tasks: [prognosis, treatment response, survival prediction]
+      patients: 11577
+      text_tokens: 1000000000
+      articles: 1001800
+      image_text_pairs: 1000000
+  # _source: PMC12295649 abstract -- "image-to-text and text-to-image retrieval, visual
+  #   question answering, image classification, and molecular biomarker prediction ...
+  #   melanoma relapse prediction, pan-cancer prognosis prediction, and immunotherapy
+  #   response prediction". Previous list omitted the four tasks the entry's own
+  #   performance rows report.
+  tasks: [retrieval, visual question answering, classification, biomarker prediction, prognosis, survival prediction, treatment response]
   tasks_detail: >-
-    Predicting clinical outcomes -- melanoma relapse, pan-cancer prognosis and
-    immunotherapy response.
+    Cross-modal retrieval, visual question answering, histopathology image classification
+    and molecular biomarker prediction, plus clinical outcome prediction -- melanoma
+    relapse, pan-cancer prognosis and immunotherapy response.
   modalities: [histopathology, text]
   performance:
     - benchmark: PathVQA visual question answering
@@ -471,13 +945,16 @@
       value: "0.768"
       note: 95% CI 0.724-0.812
   verify:
+    # _source: replaces the previous "params not filled" note -- Supplementary Table 16
+    #   has now been retrieved and the count is filled.
     - >-
-      params not filled -- the word "parameter" does not appear anywhere in the accessible
-      full text (PMC12295649). Methods defer the model configuration to Supplementary
-      Table 16 and Extended Data Fig. 7, neither of which was reachable. Do not infer a
-      count from "BEiT-3".
+      params 675M is MUSK-large, the released and final model (Supplementary Table 16;
+      repo builds musk_large_patch16_384 for the public checkpoint). The same table
+      also lists MUSK-small and MUSK-base variants -- do not replace 675M with 72M or
+      222M. Note one internal inconsistency in the supplement: MUSK-small is given as
+      72M in Table 16 and the body text but 75M in the Table 17 header. This does not
+      affect the large model, which reads 675M in all three places.
   added: {date: 2026-08, by: Leo Yin}
-
 - date: 2024-09
   title: A pathology foundation model for cancer diagnosis and prognosis prediction
   url: https://www.nature.com/articles/s41586-024-07894-z
@@ -493,6 +970,14 @@
   model:
     name: CHIEF
     repo: https://github.com/hms-dbmi/CHIEF
+    # _source: https://github.com/hms-dbmi/CHIEF README -- "Docker images (model weights)
+    #   are available at https://hub.docker.com/r/chiefcontainer/chief/"
+    weights: https://hub.docker.com/r/chiefcontainer/chief/
+    # _source: https://github.com/hms-dbmi/CHIEF README -- "CHIEF is made available under
+    #   the GPLv3 License and is available for non-commercial academic purposes."
+    license: GPLv3
+  # params: deliberately absent -- no parameter count is published by the authors
+  #   anywhere reachable. See the verify note below for the routes tried.
   backbone: CTransPath tile encoder with a weakly supervised whole-slide aggregation module
   pretraining: [self-supervised, weakly supervised]
   pretraining_detail: >-
@@ -503,6 +988,10 @@
       Unsupervised tile-level pretraining then weakly supervised slide-level
       pretraining, across 14 cohorts and 19 anatomical sites
     scale:
+      # _source: PMC12186853 -- "self-supervised pretraining using 15 million pathology
+      #   image tiles ... and weakly-supervised pretraining on 60,530 WSIs across 19
+      #   anatomical sites". Re-verified this pass; the old verify note asking for these
+      #   to be transcribed is stale and has been removed.
       image_tiles: 15000000
       whole_slide_images: 60530
       anatomical_sites: 19
@@ -531,16 +1020,24 @@
       value: "0.74"
       note: average across cancer types
   verify:
+    # _source: replaces the previous params note with the full list of routes tried.
     - >-
-      Pretraining data scale (tiles / WSIs) not yet filled in from the paper. The
-      accessible full text (PMC12186853) does give "15 million pathology image tiles"
-      and "60,530 WSIs across 19 anatomical sites" -- transcribe them into data.scale.
+      params not published. The count appears in no author source: not in the full text
+      (PMC12186853 -- the only two uses of "parameter" are an attention weight and a
+      statistical covariate), not in the "CHIEF Model Architecture" Methods section, not
+      in Supplementary Information (41586_2024_7894_MOESM1_ESM.pdf, including the
+      "Histopathological Image Feature Aggregation" Supplementary Methods), not in the
+      Nature reporting summary (MOESM2), and not in the GitHub README or repo tree
+      (hms-dbmi/CHIEF), where the weights sit behind a Google Drive access request and a
+      Docker image. CHIEF has no HuggingFace release. Do not infer a count from
+      CTransPath, its Swin Transformer backbone, or from third-party survey papers --
+      those describe a different model or repeat generic ViT reference configurations.
+    # _source: PMC12186853 -- feature dimensions confirmed against the repo README.
     - >-
-      params not filled -- the paper states no parameter count for CHIEF in the main text
-      or the "CHIEF Model Architecture" Methods section. Do not infer one from CTransPath
-      or its SwinTransformer backbone.
+      Only the embedding widths are documented, not a parameter count: the repo README
+      shows tile features of shape [1, 768] and WSI-level features of shape [1, 768].
+      Recorded here so nobody mistakes a width for a size.
   added: {date: 2026-08, by: Leo Yin}
-
 - date: 2024-07
   title: A foundation model for clinical-grade computational pathology and rare cancers detection
   url: https://www.nature.com/articles/s41591-024-03141-0
@@ -557,6 +1054,15 @@
     name: Virchow
     repo: https://github.com/Paige-AI/paige-ml-sdk
     weights: https://huggingface.co/paige-ai/Virchow
+    # _source: https://huggingface.co/api/models/paige-ai/Virchow -> cardData.license
+    #   ("apache-2.0"); the model card repeats "Apache 2.0". Access is gated.
+    license: Apache-2.0
+  # _source: PMC11485232 -- stated twice, verbatim: "Virchow, a 632 million parameter ViT
+  #   model" (Results) and "Virchow employs the ViT 'huge' architecture (ViT-H/14), a ViT
+  #   with 632 million parameters" (Methods, "Virchow architecture and training").
+  #   Corroborated by Supplementary Note 1 Table (row: Virchow | MSKCC | 1.5M | 2B |
+  #   ViT-H | 632M | DINOv2) and independently by the HuggingFace model card
+  #   (https://huggingface.co/paige-ai/Virchow, "632 million parameters", ViT-H/14).
   params: 632M
   backbone: ViT-H/14
   pretraining: [DINOv2]
@@ -564,7 +1070,15 @@
   data:
     description: H&E-stained whole-slide images from a clinical archive
     scale:
+      # _source: PMC11485232 -- "approximately 1.5 million H&E stained WSIs acquired from
+      #   Memorial Sloan Kettering Cancer Center (MSKCC)"
       whole_slide_images: 1500000
+      # _source: PMC11485232 editor summary -- "Trained on 1.5 million whole-slide images
+      #   from 100,000 patients"
+      patients: 100000
+      # _source: PMC11485232 Methods -- "Virchow was trained on 2 billion tiles sampled
+      #   randomly with replacement from approximately 13 billion available tissue tiles"
+      training_tiles: 2000000000
   tasks: [detection, biomarker prediction, classification]
   tasks_detail: Pan-cancer detection including rare cancers, and biomarker prediction.
   modalities: [histopathology]
@@ -581,18 +1095,27 @@
       metric: specificity
       value: "72.5%"
       note: UNI 68.9%, Phikon 62.9%, CTransPath 52.3%
-    - benchmark: Prostate cancer detection (product testing dataset)
+    # _source: PMC11485232 -- the "(product testing dataset)" qualifier was removed. The
+    #   sentence carrying 0.980 does not name a dataset; only the Fig. 3b legend does.
+    #   Value and the 0.995 comparison are quoted verbatim from the body text.
+    - benchmark: Prostate cancer detection versus the Paige Prostate clinical product
       metric: AUC
       value: "0.980"
-      note: FDA-approved Paige Prostate specialist model scores 0.995
+      note: >-
+        pan-cancer model on Virchow embeddings; surpassed by the FDA-approved Paige
+        Prostate specialist model at 0.995 (P < 0.05)
   verify:
+    # _source: this note was WRONG and is deleted -- 632M is quoted in the paper, twice.
+    #   Replaced with the naming caution below, which was confirmed this pass.
     - >-
-      Previously catalogued as "Virchow2". This Nat. Med. paper introduces Virchow;
-      Virchow2 is the separate arXiv follow-up (2408.00738). Confirm and, if the team
-      wants Virchow2 listed too, add it as its own entry.
-    - params 632M is the standard ViT-H/14 configuration, not a figure quoted in the paper.
+      Naming confirmed: this Nat. Med. paper introduces Virchow. Virchow2 is a separate
+      later model (arXiv 2408.00738, "Virchow2: Scaling Self-Supervised Mixed
+      Magnification Models in Pathology"), and the HuggingFace card for paige-ai/Virchow
+      points to it as the newer version. Note the trap: Virchow2 is also a 632 million
+      parameter vision transformer, so the matching count is not evidence that the two
+      entries have been confused. If the team wants Virchow2 listed, add it as its own
+      entry.
   added: {date: 2026-08, by: Leo Yin}
-
 - date: 2024-05
   title: A whole-slide foundation model for digital pathology from real-world data
   url: https://www.nature.com/articles/s41586-024-07441-w
@@ -609,7 +1132,22 @@
     name: Prov-GigaPath
     repo: https://github.com/prov-gigapath/prov-gigapath
     weights: https://huggingface.co/prov-gigapath/prov-gigapath
-  backbone: ViT tile encoder with a LongNet slide-level encoder
+    # _source CHANGED (added): arXiv:2607.18218 Table 1 + s2.1; github.com/prov-gigapath/prov-gigapath README
+    params_note: >-
+      Two components, counted separately. The Nature paper and its Supplementary
+      Information give no count for the released model; both figures come from the same
+      team's follow-up paper (GigaPath-Flash, arXiv:2607.18218), whose Table 1 lists
+      "GigaPath | Whole-Slide FM | ViT-g (1B) + LongNet (86M) | Apache-2.0 | Nature,
+      2024" and whose section 2.1 calls it "the frozen GigaPath ViT-g (1B) teacher". The
+      1B is the tile encoder; the 86M is the LongNet slide encoder. Not comparable with a
+      tile-encoder-only count such as UNI's 307M without saying which half you mean.
+  # _source CHANGED (was empty): arXiv:2607.18218 Table 1 -- "ViT-g (1B) + LongNet (86M)"
+  # corroboration for 86M: arXiv:2411.19666 (TITAN) -- "GigaPath, with ... 86.3 million parameters"
+  params: 1B
+  # _source https://raw.githubusercontent.com/prov-gigapath/prov-gigapath/main/README.md
+  #   -- "the original GigaPath slide encoder (12L/768d over 1536-dim tile embeddings)";
+  #      loader arg `gigapath_slide_enc12l768d` with input_dim 1536
+  backbone: ViT-g tile encoder with a 12-layer, 768-dim LongNet slide encoder over 1,536-dim tile embeddings
   pretraining: [DINOv2, MAE]
   pretraining_detail: >-
     DINOv2 tile-level pretraining followed by masked autoencoder pretraining with LongNet
@@ -618,10 +1156,13 @@
     description: Real-world H&E slides from the Providence health network
     scale:
       whole_slide_images: 171189
+      # _source PMC11153137 -- "comprising 1,384,860,229 image tiles from 171,189 whole pathology slides"
+      image_tiles: 1384860229
   tasks: [classification, subtyping, mutation prediction, biomarker prediction]
   tasks_detail: 26 prediction tasks spanning pathomics and cancer subtyping.
   modalities: [histopathology]
   performance:
+    # all four rows re-verified verbatim in PMC11153137 full text
     - benchmark: Digital pathology benchmark (26 tasks)
       metric: tasks at state of the art
       value: "25/26"
@@ -639,15 +1180,107 @@
       value: "0.708"
       note: average
   verify:
+    # _source CHANGED: replaces the old "params not filled" note
     - >-
-      params not filled -- the paper states no parameter count for the released
-      Prov-GigaPath. The only count it gives is for a different, smaller model ("a smaller
-      version of Prov-GigaPath using 23 million parameters"), and the tile encoder is
+      params is not from the Nature paper. Neither the paper nor its Supplementary
+      Information states a count for the released model -- the paper's only figure is for
+      a different, smaller model ("a smaller version of Prov-GigaPath using 23 million
+      parameters"), Supplementary Table 1 has no parameter column, and the tile encoder is
       described only as "the ViT model architecture with standard DINOv2 settings". The
-      TITAN paper quotes 86.3M for GigaPath's slide encoder; that is a third-party figure
-      and was deliberately not carried across.
+      HuggingFace repo is gated, so its config.json is unreadable without an account. The
+      1B/86M figures are the same team's own, published in their follow-up GigaPath-Flash
+      paper (arXiv:2607.18218, shared co-first authors Usuyama and Xu and shared senior
+      author Poon), Table 1: "ViT-g (1B) + LongNet (86M)". The 86M agrees with the
+      third-party TITAN paper's "86.3 million parameters" for GigaPath's slide encoder;
+      no source disagrees. Both figures are rounded in the source; no exact count exists.
+    - >-
+      Do not confuse this entry with GigaPath-Flash (July 2026), a separate lightweight
+      release from the same group: ViT-S/16 tile encoder (22M) plus a 12-layer 384-dim
+      LongNet slide encoder (21M). If the team wants it catalogued, it is its own entry.
   added: {date: 2026-08, by: Leo Yin}
-
+- date: 2024-03
+  title: Towards a general-purpose foundation model for computational pathology
+  url: https://www.nature.com/articles/s41591-024-02857-3
+  doi: 10.1038/s41591-024-02857-3
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Richard J. Chen
+      scholar: https://scholar.google.com/citations?user=yhGqdMgAAAAJ&hl=en
+    last:
+      name: Faisal Mahmood
+      scholar: https://scholar.google.com/citations?user=9MsdbKoAAAAJ&hl=en
+  model:
+    name: UNI
+    repo: https://github.com/mahmoodlab/UNI
+    # _source CHANGED: was https://huggingface.co/MahmoodLab/UNI2-h, which is UNI 2
+    #   (ViT-h/14-reg8, released 01/2025) -- a different model from the one this paper
+    #   describes. github.com/mahmoodlab/UNI README model table: "UNI | 03/2024 |
+    #   ViT-l/16 | HF Link -> huggingface.co/MahmoodLab/uni".
+    weights: https://huggingface.co/MahmoodLab/UNI
+  # _source CONFIRMED by the paper itself: UNI supplement, Supplementary Data Table 10
+  #   "Architecture details of pretrained vision encoders" -- row "UNI | ViT-L/16 | 307M |
+  #   133.1 images/sec". Covers the whole released model (UNI is a tile encoder only).
+  params: 307M
+  backbone: ViT-L/16
+  pretraining: [DINOv2]
+  pretraining_detail: Self-supervised DINOv2 pretraining on the Mass-100K slide corpus.
+  data:
+    description: Mass-100K, H&E whole-slide images from Massachusetts General Brigham
+    scale:
+      whole_slide_images: 100426
+      # _source PMC11403354 Methods -- "altogether yielded 100,130,900 images for
+      #   pretraining in Mass-100K"
+      tissue_patches: 100130900
+  tasks: [segmentation, detection, grading, subtyping, biomarker prediction, classification]
+  tasks_detail: >-
+    34 tasks including nuclear segmentation, primary and metastatic cancer detection,
+    cancer grading and subtyping, biomarker screening, molecular subtyping, organ
+    transplant assessment and pan-cancer classification.
+  modalities: [histopathology]
+  performance:
+    # all five rows re-verified verbatim in PMC11403354 full text
+    - benchmark: Prostate ISUP grading (PANDA)
+      metric: quadratic weighted Cohen's kappa
+      value: "0.946"
+      note: ABMIL on pre-extracted UNI features; +0.014 over REMEDIS
+    - benchmark: 32-class pan-cancer tissue classification (TCGA Uniform Tumor)
+      metric: balanced accuracy
+      value: "65.7%"
+      # _source CHANGED (note only): dataset named, margin added, both from PMC11403354
+      note: linear probing on pre-extracted features; +4.7% over REMEDIS
+    - benchmark: 32-class pan-cancer tissue classification (TCGA Uniform Tumor)
+      metric: AUROC
+      value: "0.975"
+      # _source CHANGED (note only)
+      note: linear probing on pre-extracted features; +0.017 over REMEDIS
+    - benchmark: Tumor-immune lymphocyte detection (ChampKit)
+      metric: AUROC
+      value: "0.978"
+      # _source CHANGED (note only): "without stain normalization" and the baseline FNR
+      #   added, both from PMC11403354
+      note: without stain normalisation; UNI FNR 0.193 vs best ChampKit model 0.974 AUROC / 0.246 FNR
+    - benchmark: CAMELYON17-WILDS out-of-domain test set
+      metric: accuracy
+      value: "98.3%"
+      note: 97.4% on the OOD validation set; best leaderboard model 95.2% / 96.5%
+  verify:
+    # _source CHANGED: the old note said "params 307M is the standard ViT-L/16
+    #   configuration, not a figure quoted in the paper". That is now wrong -- the paper
+    #   does quote it, in the supplement.
+    - >-
+      params 307M is confirmed against the paper's own Supplementary Data Table 10
+      ("Architecture details of pretrained vision encoders"), which lists UNI as
+      ViT-L/16, 307M. The same table's other rows agree with counts given verbatim in the
+      main text (CTransPath 28,289,038 and REMEDIS 232,230,016 appear as 28M and 232M),
+      so the row-to-column alignment of the extracted table is not in doubt. The count
+      covers the ViT-L/16 vision encoder, which is the entire released model -- UNI is a
+      tile encoder with no slide-level component.
+    - >-
+      model.weights was corrected from MahmoodLab/UNI2-h to MahmoodLab/UNI. UNI2-h is the
+      January 2025 ViT-h/14-reg8 successor, not the model this paper describes; if the
+      team wants UNI 2 catalogued it needs its own entry.
+  added: {date: 2026-08, by: Leo Yin}
 - date: 2024-03
   title: A visual-language foundation model for computational pathology
   url: https://www.nature.com/articles/s41591-024-02856-4
@@ -664,99 +1297,71 @@
     name: CONCH
     repo: https://github.com/mahmoodlab/CONCH
     weights: https://huggingface.co/MahmoodLab/CONCH
-  params: 86M
-  backbone: ViT-B/16
+  # _source CHANGED: was `params: 86M`. Removed -- no authors' source states a count.
+  #   See the verify note below for the routes tried.
+  params: null
+  # _source CONCH supplement, Supplementary Data Tables 33 and 34 (vision: 12 layers,
+  #   12 heads, patch size 16, embedding dim 768; language: 24 layers, 12 heads,
+  #   embedding dim 768, hidden dim 3,072, vocab 32,000)
+  backbone: ViT-B/16 image encoder, 12-layer text encoder and 12-layer multimodal decoder
   pretraining: [iBOT, CoCa]
   pretraining_detail: iBOT visual pretraining followed by CoCa image-text pretraining.
   data:
     description: Pathology image-caption pairs curated from educational sources and PubMed
     scale:
-      image_caption_pairs: 1170000
+      # _source PMC11384335 Extended Data Fig. 1 caption -- "(n = 1,170,647)"
+      image_caption_pairs: 1170647
   tasks: [classification, retrieval, segmentation, captioning]
   tasks_detail: >-
     Tile- and slide-level classification, cross-modal image-to-text and text-to-image
     retrieval, image segmentation and captioning.
   modalities: [histopathology, text]
   performance:
+    # _source CHANGED on the three subtyping rows: metric was "accuracy", corrected to
+    #   "balanced accuracy". Fig. 2c caption (PMC11384335): "balanced accuracy is reported
+    #   for all other tasks", and CONCH supplement Tables 1-3 report each value under a
+    #   "Balanced accuracy" column header.
     - benchmark: TCGA BRCA subtyping
-      metric: accuracy
+      metric: balanced accuracy
       value: "91.3%"
-      note: zero-shot
+      # _source CONCH supplement Supplementary Data Table 1 -- 0.913 (0.866, 0.960), n = 150
+      note: zero-shot with prompt ensembling; 95% CI 86.6-96.0%, n = 150
     - benchmark: TCGA NSCLC subtyping
-      metric: accuracy
+      metric: balanced accuracy
       value: "90.7%"
-      note: zero-shot
+      # _source CONCH supplement Supplementary Data Table 3 -- 0.907 (0.859, 0.948), n = 150
+      note: zero-shot with prompt ensembling; 95% CI 85.9-94.8%, n = 150
     - benchmark: TCGA RCC subtyping
-      metric: accuracy
+      metric: balanced accuracy
       value: "90.2%"
-      note: zero-shot
+      # _source CONCH supplement Supplementary Data Table 2 -- 0.902 (0.860, 0.938), n = 225
+      note: zero-shot with prompt ensembling; 95% CI 86.0-93.8%, n = 225
     - benchmark: Text-to-image retrieval
       metric: mean recall
       value: "44.0%"
-      note: zero-shot; average over source A, source B and TCGA LUAD
-    - benchmark: SICAP slide-level segmentation
+      # _source PMC11384335 running text for the 44.0% average and the per-dataset 68.8%
+      #   and 39.0%; CONCH supplement Tables 22, 24 and 26 for 0.688 / 0.390 / 0.240
+      note: zero-shot; paper's average over source A (68.8%), source B (39.0%) and TCGA LUAD (24.0%)
+    - benchmark: SICAP zero-shot segmentation
       metric: Dice
       value: "0.601"
-      note: zero-shot; average
+      # _source CONCH supplement Supplementary Data Table 28 -- 0.601 (0.530, 0.675), n = 31
+      note: macro-averaged over images; 95% CI 0.530-0.675, n = 31 WSIs
   verify:
-    - params 86M is the standard ViT-B/16 configuration, not a figure quoted in the paper.
+    # _source CHANGED: replaces "params 86M is the standard ViT-B/16 configuration..."
+    - >-
+      params left empty on purpose. The previously recorded 86M was inferred from the
+      ViT-B/16 backbone name and is not stated by the authors anywhere reachable: not in
+      the Nat. Med. full text (checked via NCBI efetch on PMC11384335), not in the
+      Supplementary Information (all 44 Supplementary Data Tables checked -- Tables 33 and
+      34 give layer, head and dimension counts but no parameter total), not in the
+      github.com/mahmoodlab/CONCH README, and not in the HuggingFace card or config.json
+      (MahmoodLab/CONCH is gated, HTTP 401, and ships pytorch_model.bin rather than
+      safetensors so HuggingFace publishes no computed count either). The arXiv preprint
+      (2307.12914) does not state one. Separately, 86M would have covered only the vision
+      tower: CONCH is an image encoder plus a text encoder plus a multimodal decoder, so a
+      single ViT-B/16 figure understates the model regardless of its accuracy.
   added: {date: 2026-08, by: Leo Yin}
-
-- date: 2024-03
-  title: Towards a general-purpose foundation model for computational pathology
-  url: https://www.nature.com/articles/s41591-024-02857-3
-  doi: 10.1038/s41591-024-02857-3
-  venue: Nat. Med.
-  authors:
-    first:
-      name: Richard J. Chen
-      scholar: https://scholar.google.com/citations?user=yhGqdMgAAAAJ&hl=en
-    last:
-      name: Faisal Mahmood
-      scholar: https://scholar.google.com/citations?user=9MsdbKoAAAAJ&hl=en
-  model:
-    name: UNI
-    repo: https://github.com/mahmoodlab/UNI
-    weights: https://huggingface.co/MahmoodLab/UNI2-h
-  params: 307M
-  backbone: ViT-L/16
-  pretraining: [DINOv2]
-  pretraining_detail: Self-supervised DINOv2 pretraining on the Mass-100K slide corpus.
-  data:
-    description: Mass-100K, H&E whole-slide images from Massachusetts General Brigham
-    scale:
-      whole_slide_images: 100426
-  tasks: [segmentation, detection, grading, subtyping, biomarker prediction, classification]
-  tasks_detail: >-
-    34 tasks including nuclear segmentation, primary and metastatic cancer detection,
-    cancer grading and subtyping, biomarker screening, molecular subtyping, organ
-    transplant assessment and pan-cancer classification.
-  modalities: [histopathology]
-  performance:
-    - benchmark: Prostate ISUP grading (PANDA)
-      metric: quadratic weighted Cohen's kappa
-      value: "0.946"
-      note: ABMIL on UNI features; +0.014 over REMEDIS
-    - benchmark: 32-class pan-cancer tissue classification
-      metric: balanced accuracy
-      value: "65.7%"
-      note: linear probing
-    - benchmark: 32-class pan-cancer tissue classification
-      metric: AUROC
-      value: "0.975"
-      note: linear probing
-    - benchmark: Tumor-immune lymphocyte detection (ChampKit)
-      metric: AUROC
-      value: "0.978"
-      note: best ChampKit model reports 0.974; UNI FNR 0.193
-    - benchmark: CAMELYON17-WILDS out-of-domain test set
-      metric: accuracy
-      value: "98.3%"
-      note: 97.4% on the OOD validation set; best leaderboard model 96.5%
-  verify:
-    - params 307M is the standard ViT-L/16 configuration, not a figure quoted in the paper.
-  added: {date: 2026-08, by: Leo Yin}
-
 - date: 2023-08
   title: A visual-language foundation model for pathology image analysis using medical Twitter
   url: https://www.nature.com/articles/s41591-023-02504-3
@@ -773,7 +1378,12 @@
     name: PLIP
     repo: https://github.com/PathologyFoundation/plip
     weights: https://huggingface.co/vinid/plip
-  backbone: CLIP ViT-B/32 with a Transformer text encoder
+  # params stays empty -- genuinely not published. See the verify note for routes tried.
+  # _source CONFIRMED: https://huggingface.co/vinid/plip/raw/main/config.json --
+  #   architectures ["CLIPModel"]; vision_config patch_size 32, hidden_size 768,
+  #   num_hidden_layers 12, image_size 224; text_config hidden_size 512,
+  #   num_hidden_layers 12, num_attention_heads 8; projection_dim 512
+  backbone: CLIP ViT-B/32 image encoder with a 12-layer, 512-dim Transformer text encoder
   pretraining: [CLIP, contrastive]
   pretraining_detail: CLIP fine-tuned on the OpenPath image-text corpus.
   data:
@@ -786,18 +1396,42 @@
     image-to-text retrieval.
   modalities: [histopathology, text]
   performance:
+    # both rows verified verbatim against the published Nat. Med. abstract (PMID 37592105)
     - benchmark: Zero-shot classification on four external datasets
       metric: F1
       value: "0.565-0.832"
-      note: range across the four datasets; prior CLIP model scores 0.030-0.481
+      # _source CHANGED (note only): per-dataset values now readable in the published
+      #   Supplementary Information (41591_2023_2504_MOESM1_ESM.pdf, p2)
+      note: >-
+        range across Kather colon (0.565), PanNuke (0.656), WSSS4LUAD (0.734) and
+        DigestPath (0.832); prior CLIP model scores 0.030-0.481
     - benchmark: Supervised classifier on PLIP embeddings
       metric: F1 improvement
       value: "2.5%"
       note: versus other supervised model embeddings
   verify:
+    # _source CHANGED: replaces the old "no reachable full text" note. Full text is still
+    #   unreachable, but the supplement now is, and it does not answer the question.
     - >-
-      params not filled -- this is the one entry on the page with no reachable full text.
-      There is no PMC record (checked Europe PMC and NCBI elink on PMID 37592105) and
-      nature.com redirects to the paywall, so whether the paper states a count is unknown
-      rather than answered. The abstract does not. Do not infer one from "CLIP ViT-B/32".
+      params genuinely not published. Routes tried, all exhausted: Europe PMC (no PMC
+      record; the DOI resolves with isOpenAccess N and only a subscription DOI link);
+      NCBI efetch db=pmc (no record); nature.com (paywalled); the published Supplementary
+      Information, which is reachable without login from Springer's static-content host
+      (41591_2023_2504_MOESM1_ESM.pdf, 13 pages) and contains no occurrence of
+      "parameter", "million", "ViT" or any architecture description at all -- its six
+      tables are dataset statistics and per-dataset results; the reporting-summary
+      companion file (MOESM2, 2 pages) is an image-only scan with no text layer; the
+      HuggingFace card at vinid/plip, which is boilerplate copied from OpenAI's CLIP card
+      and states no count, with no safetensors index so HuggingFace publishes no computed
+      count either; vinid/plip config.json, which gives layer and dimension counts but no
+      total; the github.com/PathologyFoundation/plip README and its full file tree; and
+      the bioRxiv preprint (10.1101/2023.03.29.534834), which Cloudflare refused on every
+      attempt (HTTP 429 and 403 across the API, the PDF and the HTML). OpenAlex and
+      Semantic Scholar list no open-access copy other than that bioRxiv PDF. Do not infer
+      a count from "CLIP ViT-B/32".
+    - >-
+      Performance rows come from the published abstract (PMID 37592105), which is the
+      highest-authority text reachable for this paper. The Supplementary Information
+      corroborates the range endpoints per dataset but the main-text results tables were
+      not reachable.
   added: {date: 2026-08, by: Leo Yin}
