@@ -398,89 +398,9 @@ def render_domain_page(domain: dict, entries: list[dict], vocab: Vocab) -> str:
 # README
 # ---------------------------------------------------------------------------
 
-LEGACY_ROW_RE = re.compile(r"^\|\s*(\d{6}|\d{4}-\d{2})\s*\|")
-
-
-def count_legacy_rows(path: Path) -> int:
-    if not path.exists():
-        return 0
-    return sum(1 for line in path.read_text().splitlines() if LEGACY_ROW_RE.match(line))
-
-
-def render_readme(domains: list[dict], counts: dict[str, int]) -> str:
-    total = sum(counts.values())
-    migrated = sum(1 for d in domains if (DATA_DIR / f"{d['slug']}.yaml").exists())
-
-    out = [GENERATED_BANNER.format(source="data/domains.yaml")]
-    out.append("# Awesome Biomedical AI Models")
-    out.append("")
-    out.append(
-        "A curated catalogue of biomedical AI models and systems published in leading "
-        "journals, with the architecture, pre-training recipe, training data and "
-        "downstream tasks recorded for each one."
-    )
-    out.append("")
-    out.append(f"**{total} models** across {len(domains)} domains.")
-    out.append("")
-    out.append("## Browse by domain")
-    out.append("")
-    out.append("| Domain | Scope | Models | Maintainer | Papers |")
-    out.append("| --- | --- | ---: | --- | --- |")
-    for domain in domains:
-        # One "Papers" column carrying whichever sources the maintainer has set
-        # up: the PDF repo to clone into NotebookLM, the notebook itself, or
-        # both. Clone the repo rather than uploading files one at a time.
-        sources = []
-        if domain.get("pdf_repo"):
-            sources.append(f"[PDFs]({domain['pdf_repo']})")
-        if domain.get("notebooklm"):
-            sources.append(f"[NotebookLM]({domain['notebooklm']})")
-        out.append(
-            "| [{name}]({file}) | {scope} | {count} | {maint} | {papers} |".format(
-                name=domain["name"],
-                file=domain["file"],
-                scope=escape_cell(domain["scope"]),
-                count=counts.get(domain["slug"], 0),
-                maint=escape_cell(maintainer_line(domain.get("maintainers"))),
-                papers=" · ".join(sources) if sources else "—",
-            )
-        )
-    out.append("")
-    out.append("## Contributing")
-    out.append("")
-    out.append(
-        "This repository holds the catalogue pages themselves. The records they are "
-        f"built from, and the tooling that builds them, live in [{PIPELINE_URL.split('/')[-1]}]"
-        f"({PIPELINE_URL}) — so a pull request that adds a paper edits the YAML there, "
-        "not the markdown here. Anything typed into a generated page is overwritten on "
-        "the next build."
-    )
-    out.append("")
-    out.append("```bash")
-    out.append(f"git clone {PIPELINE_URL}.git")
-    out.append("cd biomedical-ai-pipeline && pip install -r requirements.txt")
-    out.append('python scripts/fetch_meta.py "<doi>"   # or /add-paper <link> in Claude Code')
-    out.append("```")
-    out.append("")
-    out.append(
-        f"The schema, the house rules and how to pick a domain page are in "
-        f"[CONTRIBUTING.md]({PIPELINE_BLOB}/CONTRIBUTING.md)."
-    )
-    out.append("")
-    if migrated == len(domains):
-        out.append(
-            f"All {len(domains)} pages are generated from the structured data — "
-            "edit the YAML, never the markdown."
-        )
-    else:
-        verb = "is" if migrated == 1 else "are"
-        out.append(
-            f"{migrated} of {len(domains)} pages {verb} on the structured format so far; "
-            "the rest are still hand-maintained markdown and can migrate one at a time."
-        )
-    return "\n".join(out) + "\n"
-
-
+# The catalogue README is hand-maintained by the team -- this build does not
+# touch it. Generating a shared front page from one maintainer's data would
+# overwrite everyone else's edits on every run.
 # ---------------------------------------------------------------------------
 
 def main() -> int:
@@ -528,10 +448,7 @@ def main() -> int:
             entries = load_domain(slug)
             counts[slug] = len(entries)
             rendered[page] = render_domain_page(domain, entries, vocab)
-        else:
-            counts[slug] = count_legacy_rows(page)
-
-    rendered[CATALOGUE_ROOT / "README.md"] = render_readme(domains, counts)
+        # Pages without a data file are hand-maintained; nothing to render.
 
     stale: list[Path] = []
     for path, content in rendered.items():
@@ -559,7 +476,8 @@ def main() -> int:
             print(f"wrote {rel(path)}")
     else:
         print("No changes.")
-    print(f"{sum(counts.values())} models across {len(domains)} domains.")
+    pages = "page" if len(counts) == 1 else "pages"
+    print(f"{sum(counts.values())} models across {len(counts)} generated {pages}.")
     return 0
 
 
