@@ -32,7 +32,7 @@ from lib.schema import (  # noqa: E402
 # The catalogue holds only markdown, so every path a generated page points at
 # has to be an absolute URL into this repository -- a relative link would 404.
 PIPELINE_URL = os.environ.get(
-    "PIPELINE_URL", "https://github.com/leoyin1127/biomedical-ai-pipeline"
+    "PIPELINE_URL", "https://github.com/1nslyn/biomedical-ai-pipeline"
 ).rstrip("/")
 PIPELINE_BLOB = f"{PIPELINE_URL}/blob/main"
 
