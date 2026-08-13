@@ -60,13 +60,17 @@ Expected (a warning if missing): `doi`, `authors`, `backbone`, `data`, `tasks`,
 | `venue` | Must be in `data/vocab.yaml`. Add new ones there with a `short`. |
 | `authors` | `first` and `last` only, each `{name, scholar}`. |
 | `model` | `{name, repo, weights, license}`. Only `name` is required. |
-| `params` | `632M`, `4.6B`. **Only if the paper states it** — see below. |
+| `params` | `632M`, `4.6B`. **Only if an author source states it** — see below. |
+| `params_scope` | What the count covers, when it is a component: `tile enc.`, `slide enc.`, `MIL head`. Omit for a whole released model. |
+| `params_status` | Why `params` is empty: `not published`, `n/a`, `unchecked`. |
 | `backbone` | One line of architecture. |
 | `pretraining` | List, from the `pretraining` vocabulary. |
+| `pretraining_short` | The named recipe for the scan table: `DINOv2`, `iBOT → CoCa`. |
 | `data.scale` | Integers, with keys naming what was counted. |
+| `training_slides` | Whole slides trained on, for the scan table: `1.5M`, `none (208K image–text)`. |
 | `tasks` | List, from the `tasks` vocabulary. |
 | `performance` | `[{benchmark, metric, value, note}]`. |
-| `verify` | Free-text list of things you could not confirm. Renders on the page. |
+| `verify` | Free-text list of things you could not confirm. Not rendered on the page; `validate.py --report` lists every entry carrying one. |
 
 The controlled vocabularies (`venues`, `tasks`, `modalities`, `pretraining`)
 live in `data/vocab.yaml`. The validator rejects values outside them, which is
@@ -74,12 +78,34 @@ the point: nine people otherwise write "Nat Med", "Nat. Med." and "Nature
 Medicine" for the same journal. If a term is genuinely missing, add it to the
 vocabulary in the same PR.
 
-### Two fields that are easy to get wrong
+### Three fields that are easy to get wrong
 
-**`params`.** Leave it `null` unless the paper gives a number. A backbone name
-is not a parameter count — "ViT-L" tells you the reference configuration, not
-what these authors trained. Where an entry does carry an inferred count, it also
-carries a `verify` note saying so.
+**`params`.** Leave it `null` unless an author source gives a number — the
+paper, its supplement, or the authors' own model card or repo. A backbone name
+is not a parameter count: "ViT-L" tells you the reference configuration, not
+what these authors trained. Never compute one from a checkpoint, and never carry
+across a figure another team's paper quotes about this model.
+
+An empty `params` still owes the reader an explanation, so set `params_status`:
+
+| Value | Means |
+| --- | --- |
+| `not published` | You worked the access routes in `add-paper.md` and no author source states one. Say which routes in a `verify` note. |
+| `n/a` | The paper introduces no model — a benchmarking study, a dataset, a clinical evaluation. |
+| `unchecked` | Nobody has looked yet. The honest default, and the validator warns until it changes. |
+
+When `params` *is* filled but covers one component, say which in `params_scope`.
+TITAN's 48.5M is a slide encoder and Virchow's 632M is a tile encoder; printed
+side by side with no scope they invite a wrong comparison.
+
+**The three scan-table fields.** `pretraining_short`, `params_scope` and
+`training_slides` exist because the structured fields do not survive being
+squeezed into a table cell. `pretraining: [self-supervised]` is true of nearly
+every model here, so it distinguishes nothing — `pretraining_short: DINOv2`
+names the actual recipe. `data.scale` counts training slides in one entry and
+evaluation slides in the next, so `training_slides` is written by hand rather
+than guessed from a key name. All three are summaries of fields that already
+appear in the record; none may introduce a claim the record does not support.
 
 **`performance`.** The headline benchmark results, two to five rows — what the
 authors themselves lead with, not their full results table. Only numbers you can
@@ -88,7 +114,8 @@ number in a catalogue other people cite is worse than a missing one, and this is
 the field an LLM is most likely to invent when it is working from an abstract.
 Never carry a number across from a different paper about the same model.
 
-When in doubt, write a `verify` note. It renders as a callout on the page and
+When in doubt, write a `verify` note. It stays in the YAML rather than on the
+page — a reader wants the catalogue, not the research log — and
 `validate.py --report` lists every entry carrying one, so it becomes tracked
 work instead of a silent hole.
 
@@ -96,8 +123,8 @@ work instead of a silent hole.
 
 Two parts, both generated:
 
-- a scan table — model, model size, data size, pre-training, downstream tasks —
-  with the model name linking into its record;
+- a scan table — model, model size, training slides, pre-training, downstream
+  tasks — with the model name linking into its record;
 - one collapsed record per model, holding the paper, authors, architecture,
   data, tasks and reported performance.
 

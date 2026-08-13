@@ -30,6 +30,10 @@
   #          most comprehensive dataset to date". CONFIRMED -- was previously flagged
   #          UNCONFIRMED. See the verify note for the second-source disagreement.
   params: 4.6B
+  # Scan-table copy. These three summarise fields that already appear below --
+  # they add no claim, they only choose what fits in a cell. See schema.py.
+  pretraining_short: contrastive → dialogue next-token
+  training_slides: 2.35M
   # _source: https://www.nature.com/articles/s41591-026-04521-4 (Methods, "Model
   #          architecture"): perceiver slide encoder (one cross-attention block +
   #          six self-attention layers, 256 latent queries) 541M params, attention
@@ -149,6 +153,11 @@
     weights: https://huggingface.co/yili7eli/PRET
     license: Apache-2.0
   # params: deliberately absent. No source states a count -- see the verify note.
+  params_status: not published
+  pretraining_short: DINO ViT-S/8 encoder, then frozen
+  # PRET fits no task-specific parameters at all; the 4,484 WSIs in data.scale are
+  # the evaluation set, not a training set.
+  training_slides: none (training-free)
   # _source: PRET Supplementary Information PDF, "Algorithms of PRET / Feature extractor
   #          based on pathological foundation models" (43018_2026_1141_MOESM1_ESM.pdf,
   #          linked from the article page): "the default foundation model proposed by
@@ -231,6 +240,12 @@
     name: HistBiases
     repo: https://github.com/imuhdawood/HistBiases
   # params: correctly absent. Confirmed by full-text search -- see the verify note.
+  # `n/a` rather than `not published`: this paper introduces no model, so there is
+  # no count for anyone to fill in later.
+  params_status: n/a
+  pretraining_short: frozen CTransPath + CLAM/SlideGraph
+  # The cohort is reported in patients; no slide count appears in the full text.
+  training_slides: not stated (8.2K patients)
   backbone: >-
     Benchmarking study rather than a new model. Evaluates CLAM, SlideGraph-infinity and
     TITAN, with CTransPath and ShuffleNet patch encoders.
@@ -330,6 +345,12 @@
     name: Neuropath-AI
     weights: https://methylscape.ccr.cancer.gov/
   # params: deliberately absent. No source states a count -- see the verify note.
+  params_status: not published
+  # The informative part of this method is the hierarchy, not the supervision:
+  # WSIs -> predicted methylation/expression -> 9 families -> 52 terminal types.
+  pretraining_short: WSI → molecular inference → hierarchy
+  # The abstract counts samples, not slides -- see the data.scale comment.
+  training_slides: 5.8K samples (not slides)
   # _source: this line has been rewritten to only what is sourced. Published abstract
   #          (PMID 41643698, Europe PMC): the model was "trained ... to infer molecular
   #          features from whole slide images and to use these to predict tumour types
@@ -448,6 +469,10 @@
   # _source: https://huggingface.co/api/models/Astaxanthin/KEEP (safetensors total
   # 414,210,816) and https://huggingface.co/Astaxanthin/KEEP ("Model size 0.4B params")
   params: 414M
+  pretraining_short: knowledge-graph metric + contrastive
+  # KEEP trains on tile-level image-text pairs from OpenPath and Quilt-1M; no whole
+  # slide enters pretraining.
+  training_slides: none (tile–text pairs)
   # _source: ARXIV 2412.13126v2 methods -- "KEEP consists of a vision encoder based on the
   # backbone of ViT-L-16 and a text encoder based on the architecture of PubMedBERT. We
   # adopt UNI to initialize the image encoder ... the text encoder of KEEP is initialized
@@ -552,6 +577,10 @@
     name: CHAI
   # _source: not published. See the verify note for the routes tried.
   params: null
+  params_status: not published
+  pretraining_short: supervised histomorphologic screening
+  # The abstract counts patients; the development cohort is 178 of the 477.
+  training_slides: not stated (178 patients)
   # _source: EPMC abstract (PMID 41671529). Replaces "Not stated in the paper", which
   # asserted something about a full text nobody in this repo has been able to read.
   backbone: >-
@@ -639,6 +668,10 @@
   # parameters, outperform heavier slide encoders PRISM and GigaPath, with 99.0 million and
   # 86.3 million parameters". Unchanged.
   params: 48.5M
+  # Excludes the frozen CONCH v1.5 patch encoder -- see model.params_note.
+  params_scope: slide enc.
+  pretraining_short: iBOT → CoCa (3 stages)
+  training_slides: 336K
   backbone: ViT slide encoder (Transformer-based Image and Text Alignment Network) over CONCH v1.5 patch features
   # _source: PMC12618242 -- "we apply the iBOT framework for vision-only pretraining of
   # TITAN on the 2D feature grid" (stage 1) and "we use contrastive captioners (CoCa) as the
@@ -746,6 +779,12 @@
   # confirms the exclusion: the comparison is against the ABMIL and TransMIL heads at a
   # fixed patch embedding dimension of 1024. AGREE. Unchanged.
   params: 1.2M
+  # Excludes the frozen ResNet-50/CONCH patch encoder -- see model.params_note.
+  params_scope: MIL head
+  pretraining_short: weakly supervised MIL, frozen encoder
+  # The 3,850 slides are the whole benchmark; SMMILe is trained and tested on them
+  # under cross-validation, so this is not a held-out pretraining corpus.
+  training_slides: 3.9K (cross-validated)
   backbone: >-
     ResNet-50 and CONCH patch encoders with an instance-based multiple-instance-learning
     architecture using superpatch and refinement modules
@@ -829,6 +868,8 @@
   #   Supplementary Table 17 ("MUSK-large (675M/222G)"). MUSK-large is the paper's
   #   final model: "in this study, we chose MUSK-large as our final model".
   params: 675M
+  pretraining_short: BEiT-3 MIM → contrastive
+  training_slides: 33K
   # _source: PMC12295649 Methods + Fig. 1 caption + Supplementary Table 16 (Large column)
   backbone: >-
     BEiT-3-style multimodal transformer -- shared self-attention blocks with two
@@ -911,6 +952,9 @@
     license: GPLv3
   # params: deliberately absent -- no parameter count is published by the authors
   #   anywhere reachable. See the verify note below for the routes tried.
+  params_status: not published
+  pretraining_short: CTransPath tiles → weakly supervised
+  training_slides: 60.5K
   backbone: CTransPath tile encoder with a weakly supervised whole-slide aggregation module
   pretraining: [self-supervised, weakly supervised]
   pretraining_detail: >-
@@ -988,6 +1032,8 @@
   #   ViT-H | 632M | DINOv2) and independently by the HuggingFace model card
   #   (https://huggingface.co/paige-ai/Virchow, "632 million parameters", ViT-H/14).
   params: 632M
+  pretraining_short: DINOv2
+  training_slides: 1.5M
   backbone: ViT-H/14
   pretraining: [DINOv2]
   pretraining_detail: Self-supervised DINOv2 pretraining on H&E whole-slide images.
@@ -1068,6 +1114,11 @@
   # _source CHANGED (was empty): arXiv:2607.18218 Table 1 -- "ViT-g (1B) + LongNet (86M)"
   # corroboration for 86M: arXiv:2411.19666 (TITAN) -- "GigaPath, with ... 86.3 million parameters"
   params: 1B
+  # Two components counted separately; the 86M LongNet slide encoder is the other
+  # half and is named in model.params_note rather than crowding the scan table.
+  params_scope: tile enc.
+  pretraining_short: DINOv2 tiles → LongNet MAE slides
+  training_slides: 171K
   # _source https://raw.githubusercontent.com/prov-gigapath/prov-gigapath/main/README.md
   #   -- "the original GigaPath slide encoder (12L/768d over 1536-dim tile embeddings)";
   #      loader arg `gigapath_slide_enc12l768d` with input_dim 1536
@@ -1138,6 +1189,8 @@
   #   "Architecture details of pretrained vision encoders" -- row "UNI | ViT-L/16 | 307M |
   #   133.1 images/sec". Covers the whole released model (UNI is a tile encoder only).
   params: 307M
+  pretraining_short: DINOv2
+  training_slides: 100K
   backbone: ViT-L/16
   pretraining: [DINOv2]
   pretraining_detail: Self-supervised DINOv2 pretraining on the Mass-100K slide corpus.
@@ -1216,6 +1269,10 @@
   # _source CHANGED: was `params: 86M`. Removed -- no authors' source states a count.
   #   See the verify note below for the routes tried.
   params: null
+  params_status: not published
+  pretraining_short: iBOT → CoCa
+  # CONCH pretrains on tile-level image-caption pairs; no whole slide is used.
+  training_slides: none (1.17M image–caption)
   # _source CONCH supplement, Supplementary Data Tables 33 and 34 (vision: 12 layers,
   #   12 heads, patch size 16, embedding dim 768; language: 24 layers, 12 heads,
   #   embedding dim 768, hidden dim 3,072, vocab 32,000)
@@ -1295,6 +1352,10 @@
     repo: https://github.com/PathologyFoundation/plip
     weights: https://huggingface.co/vinid/plip
   # params stays empty -- genuinely not published. See the verify note for routes tried.
+  params_status: not published
+  pretraining_short: CLIP contrastive fine-tune
+  # OpenPath is tile-level image-text pairs scraped from Twitter; no whole slides.
+  training_slides: none (208K image–text)
   # _source CONFIRMED: https://huggingface.co/vinid/plip/raw/main/config.json --
   #   architectures ["CLIPModel"]; vision_config patch_size 32, hidden_size 768,
   #   num_hidden_layers 12, image_size 224; text_config hidden_size 512,

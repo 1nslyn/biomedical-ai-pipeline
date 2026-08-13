@@ -103,15 +103,36 @@ a human with browser access.
   paper, its supplement, or the authors' own model card or repo — all three are
   citable, and the supplement is where it usually hides. **Never infer one from
   a backbone name, never compute it, and never copy a figure another team's
-  paper quotes about this model.** Say which component it covers when a model
-  has several (tile encoder vs slide encoder, vision vs text). Leave it `null`
-  only once you have worked the routes above and come up empty, and say so.
+  paper quotes about this model.** Leave it `null` only once you have worked the
+  routes above and come up empty.
+- `params_scope` — set this whenever the count covers one component rather than
+  the released model: `tile enc.`, `slide enc.`, `MIL head`, `both towers`.
+  Without it the scan table puts a 48.5M slide encoder next to a 632M tile
+  encoder and invites the wrong conclusion. Omit for a whole model.
+- `params_status` — required whenever `params` is null, because an empty cell
+  otherwise reads as "nobody looked". `not published` once you have worked every
+  route above and the authors state none; `n/a` when the paper introduces no
+  model; `unchecked` if you are leaving it for someone else, which the validator
+  will keep warning about until it is resolved.
 - `backbone` — architecture in one line.
 - `pretraining` — terms from the `pretraining` list in `data/vocab.yaml`.
   `pretraining_detail` — the recipe in one or two sentences.
+- `pretraining_short` — the same recipe compressed to a table cell, ≤44
+  characters: `DINOv2`, `iBOT → CoCa`, `BEiT-3 MIM → contrastive`. **Name the
+  method, not the supervision paradigm.** "self-supervised" is true of nearly
+  every model in this catalogue, so it tells a reader nothing. Where the authors
+  genuinely describe no recipe, say what the system does instead
+  (`WSI → molecular inference → hierarchy`). This is a summary of
+  `pretraining_detail` and must not add a claim it does not support.
 - `data.description` and `data.scale` — real integers from the paper. Use keys
   that say what was counted (`whole_slide_images`, `patients`, `image_text_pairs`).
   Drop the placeholder keys you do not need.
+- `training_slides` — whole slides the model was *trained* on, ≤28 characters:
+  `1.5M`, `60.5K`. Do not derive this from `data.scale` — half the papers here
+  report an evaluation set in the same units, and printing one as the other is a
+  silent factual error. When the model never sees a whole slide, say what it did
+  see: `none (208K image–text)`. When the paper counts something else, say so:
+  `not stated (8.2K patients)`.
 - `tasks` — terms from the `tasks` list. `tasks_detail` — the specifics.
 - `modalities` — terms from the `modalities` list.
 - `performance` — headline benchmark results, as

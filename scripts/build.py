@@ -42,7 +42,7 @@ GENERATED_BANNER = (
     "<!-- Edits made here are overwritten by the next build. -->\n"
 )
 
-# Compact labels for the index table's data column.
+# Readable labels for the scale chips in a detail block.
 SCALE_LABELS = {
     "whole_slide_images": "WSI",
     "evaluation_wsi": "WSI (eval)",
@@ -54,23 +54,6 @@ SCALE_LABELS = {
     "patients": "patients",
     "specimens": "specimens",
 }
-# Priority order when picking the one number that goes in the index table.
-SCALE_PRIORITY = [
-    "whole_slide_images",
-    "image_text_pairs",
-    "image_caption_pairs",
-    "patients",
-    "evaluation_wsi",
-    "semantic_groups",
-]
-
-
-def human_number(n: int) -> str:
-    for size, suffix in ((1_000_000_000, "B"), (1_000_000, "M"), (1_000, "K")):
-        if n >= size:
-            value = n / size
-            return f"{value:.1f}".rstrip("0").rstrip(".") + suffix
-    return str(n)
 
 
 def escape_cell(text: str) -> str:
@@ -100,18 +83,6 @@ def anchor_id(entry: dict) -> str:
     name = (entry.get("model") or {}).get("name") or entry.get("title", "")
     slug = re.sub(r"[^a-z0-9]+", "-", str(name).lower()).strip("-")
     return f"model-{slug}-{str(entry.get('date', '')).replace('-', '')}"
-
-
-def headline_scale(entry: dict) -> str:
-    scale = (entry.get("data") or {}).get("scale") or {}
-    if not scale:
-        return "—"
-    key = next((k for k in SCALE_PRIORITY if k in scale), None) or next(iter(scale))
-    value = scale[key]
-    if not isinstance(value, int):
-        return escape_cell(value)
-    label = SCALE_LABELS.get(key, key.replace("_", " "))
-    return f"{human_number(value)} {label}"
 
 
 def person_link(person: dict | None) -> str:
@@ -178,6 +149,58 @@ def term_cell(terms: list[str] | None, limit: int = 3) -> str:
     return f"{shown} +{extra}" if extra > 0 else shown
 
 
+def date_cell(entry: dict) -> str:
+    """`2026-07` as `2026.07`.
+
+    The hyphen is a break opportunity, so a narrow first column renders it as
+    "2026-" over "07". A dot is not, so the cell always stays on one line.
+    """
+    date = str(entry.get("date") or "").strip()
+    return date.replace("-", ".") if date else "—"
+
+
+def params_cell(entry: dict) -> str:
+    """Model size, with the scope that makes it comparable.
+
+    A bare "48.5M" next to a bare "632M" reads as a 13x difference when it is
+    really a slide encoder next to a tile encoder. And a bare em dash reads as
+    "nobody looked", which is wrong for the entries where the authors simply
+    publish no count -- so an empty cell says which it is.
+    """
+    params = entry.get("params")
+    if not params:
+        status = entry.get("params_status")
+        return f"_{escape_cell(status)}_" if status else "—"
+    scope = entry.get("params_scope")
+    return f"{escape_cell(params)} ({escape_cell(scope)})" if scope else escape_cell(params)
+
+
+def training_slides_cell(entry: dict) -> str:
+    """Whole slides the model was actually trained on.
+
+    Hand-written per entry rather than pulled from `data.scale`, which counts
+    different things in different records -- training slides in one, evaluation
+    slides in the next, image-text pairs in a third. Falling back to
+    `whole_slide_images` would quietly print an evaluation set as a training
+    set, so an entry that has not been curated shows an em dash instead.
+    """
+    return escape_cell(entry.get("training_slides") or "—")
+
+
+def pretraining_cell(entry: dict) -> str:
+    """The named recipe, falling back to the controlled-vocabulary terms.
+
+    `pretraining` is a vocabulary built for filtering, and filtering wants
+    coarse buckets: nearly every model on this page is `self-supervised`, so
+    printing that distinguishes nothing. `pretraining_short` names the actual
+    method -- DINOv2, iBOT -> CoCa, BEiT-3 MIM -> contrastive.
+    """
+    short = entry.get("pretraining_short")
+    if short:
+        return escape_cell(short)
+    return escape_cell(term_cell(entry.get("pretraining")))
+
+
 def render_index_table(entries: list[dict]) -> list[str]:
     """The scan table: one row per model, linking into its detail block.
 
@@ -187,25 +210,43 @@ def render_index_table(entries: list[dict]) -> list[str]:
     which is one click away on the model name.
     """
     lines = [
-        "| Date | Model | Venue | Model size | Training data | Pre-training | Downstream tasks |",
+        "| Date | Model | Venue | Model size | Training slides | Pre-training | Downstream tasks |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for entry in entries:
         model = entry.get("model") or {}
         lines.append(
-            "| {date} | [{name}](#{anchor}) | {venue} | {params} | {scale} "
+            "| {date} | [{name}](#{anchor}) | {venue} | {params} | {slides} "
             "| {pretraining} | {tasks} |".format(
-                date=entry.get("date", "—"),
+                date=date_cell(entry),
                 name=escape_cell(model.get("name", "—")),
                 anchor=anchor_id(entry),
                 venue=escape_cell(entry.get("venue", "—")),
-                params=entry.get("params") or "—",
-                scale=headline_scale(entry),
-                pretraining=escape_cell(term_cell(entry.get("pretraining"))),
+                params=params_cell(entry),
+                slides=training_slides_cell(entry),
+                pretraining=pretraining_cell(entry),
                 tasks=escape_cell(term_cell(entry.get("tasks"))),
             )
         )
     return lines
+
+
+# Only printed when the table above actually uses the convention it explains.
+TABLE_LEGEND = (
+    "<sub><b>Model size</b> is the count the authors publish, with the component "
+    "it covers in brackets — a slide encoder and a tile encoder are not "
+    "comparable. <i>not published</i> means the access routes were worked and no "
+    "author source states one; <i>n/a</i> means the paper does not introduce a "
+    "model. <b>Training slides</b> counts whole slides used for training, so a "
+    "model trained on tiles or image–text pairs shows what it used instead.</sub>"
+)
+
+
+def needs_legend(entries: list[dict]) -> bool:
+    return any(
+        entry.get("params_scope") or entry.get("params_status") or entry.get("training_slides")
+        for entry in entries
+    )
 
 
 def group_entries(domain: dict, entries: list[dict]) -> list[tuple[str | None, list[dict]]]:
@@ -366,6 +407,10 @@ def render_domain_page(domain: dict, entries: list[dict], vocab: Vocab) -> str:
             out.append(f"## {group_name}")
             out.append("")
         out.extend(render_index_table(rows))
+        out.append("")
+
+    if needs_legend(entries):
+        out.append(TABLE_LEGEND)
         out.append("")
 
     out.append("## Details")

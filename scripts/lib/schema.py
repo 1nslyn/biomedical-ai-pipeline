@@ -130,6 +130,38 @@ KNOWN_FIELDS = set(REQUIRED) | set(EXPECTED) | {
     # data/domains.yaml renders one table per group instead of one long one --
     # genomics / transcriptomics / proteomics rather than a single omics wall.
     "group",
+    # --- Scan-table copy, written by hand -------------------------------------
+    #
+    # The scan table has to be readable at a glance, and three of its columns
+    # cannot be derived from the structured fields without lying:
+    #
+    #   pretraining_short  A controlled-vocabulary list renders as "self-supervised",
+    #                      which tells a reader nothing -- every model here is
+    #                      self-supervised. This is the named recipe instead
+    #                      ("DINOv2", "iBOT -> CoCa"). Must be supported by
+    #                      `pretraining_detail`; it is a summary, not a new claim.
+    #   params_scope       What the count covers. TITAN's 48.5M is a slide encoder
+    #                      and Virchow's 632M is a tile encoder; printed side by
+    #                      side with no scope they invite a wrong comparison.
+    #   params_status      Why `params` is null, so an empty cell distinguishes
+    #                      "the authors publish none" from "nobody has looked".
+    #   training_slides    Slides actually trained on. `data.scale` mixes training,
+    #                      evaluation and non-slide units across entries, so
+    #                      picking one number automatically gets it wrong.
+    "pretraining_short",
+    "params_scope",
+    "params_status",
+    "training_slides",
+}
+
+# `params: null` is a claim in its own right, so it has to say which claim.
+PARAMS_STATUS = {
+    # Searched and genuinely absent -- the entry's `verify` note lists the routes.
+    "not published",
+    # Not a model: a benchmarking study, a dataset paper, a clinical evaluation.
+    "n/a",
+    # Nobody has worked the access routes yet. The honest default for a new entry.
+    "unchecked",
 }
 
 
@@ -255,6 +287,72 @@ def validate_entry(entry: dict, where: str, vocab: Vocab) -> list[Issue]:
     if params is not None and not PARAMS_RE.match(str(params)):
         issues.append(
             Issue("error", where, f"params {params!r} must look like 632M / 4.6B / 7B")
+        )
+
+    status = entry.get("params_status")
+    if params is None:
+        if status is None:
+            issues.append(
+                Issue(
+                    "warn",
+                    where,
+                    "params is empty and params_status does not say why -- use "
+                    f"one of {sorted(PARAMS_STATUS)}",
+                )
+            )
+        elif status == "unchecked":
+            issues.append(
+                Issue("warn", where, "params_status is 'unchecked': the access routes "
+                      "in add-paper.md have not been worked yet")
+            )
+    elif status is not None:
+        issues.append(
+            Issue("error", where, "params_status explains an empty params; remove it")
+        )
+    if status is not None and status not in PARAMS_STATUS:
+        issues.append(
+            Issue(
+                "error",
+                where,
+                f"params_status {status!r} must be one of {sorted(PARAMS_STATUS)}",
+            )
+        )
+
+    if entry.get("params_scope") and params is None:
+        issues.append(
+            Issue("error", where, "params_scope describes a count that is not there")
+        )
+
+    # These three are prose for the scan table, so the only machine-checkable
+    # thing about them is that they stay short enough to sit in a cell.
+    for name, limit in (
+        ("pretraining_short", 44),
+        ("params_scope", 24),
+        ("training_slides", 28),
+    ):
+        value = entry.get(name)
+        if value is None:
+            continue
+        if not isinstance(value, str):
+            issues.append(Issue("error", where, f"{name} must be a string"))
+        elif len(value) > limit:
+            issues.append(
+                Issue(
+                    "warn",
+                    where,
+                    f"{name} is {len(value)} characters; over ~{limit} it wraps the "
+                    "scan table. Put the detail in the record instead.",
+                )
+            )
+
+    if entry.get("pretraining_short") and not entry.get("pretraining_detail"):
+        issues.append(
+            Issue(
+                "warn",
+                where,
+                "pretraining_short summarises pretraining_detail, which is missing -- "
+                "the short label has nothing backing it",
+            )
         )
 
     model = entry.get("model")
