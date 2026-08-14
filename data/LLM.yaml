@@ -1,0 +1,1489 @@
+# Large Language Models -- benchmarks of LLMs, medical language models and
+# clinical NLP.
+#
+# Source of truth for LLM.md. After editing, run:
+#     python scripts/build.py
+# CI will reject the PR if the generated markdown is out of date.
+#
+# Field reference: CONTRIBUTING.md
+#
+# This first batch was migrated from the old hand-maintained LLM.md table.
+# Bibliographic fields (date, title, url, doi, venue, authors) come from
+# Crossref via fetch_meta.py. The fields that need the paper read were filled
+# from the Europe PMC abstract only -- full text was not fetched for this
+# pass -- so `performance` is limited to numbers stated directly in the
+# abstract, `params_status` is `unchecked` rather than `not published`, and
+# each entry carries a `verify` note saying so.
+
+- date: 2026-08
+  title: Divergent impacts of explainable AI for dermatological diagnosis on clinicians versus lay people
+  url: https://www.nature.com/articles/s41591-026-04553-w
+  doi: 10.1038/s41591-026-04553-w
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Xuhai 'Orson' Xu
+      scholar: null
+    last:
+      name: Marzyeh Ghassemi
+      scholar: null
+  model:
+    name: Dermatology XAI human-factors study (CDANN + GPT-4V)
+    repo: null
+  summary:
+    - LLM-generated explanations (GPT-4V) boosted diagnostic accuracy more than other XAI methods when the AI was right, but hurt it most when the AI was wrong -- a "double-edged sword" effect.
+    - A fairness-constrained diagnostic model (CDANN) narrowed skin-tone accuracy disparities by ~47% for lay people and ~36% for physicians.
+    - Experienced PCPs were more resilient to misleading AI explanations than lay users, who showed stronger automation bias.
+  summary_short: LLM explanations were a double-edged sword for diagnostic accuracy, while fairness-constrained training reduced skin-tone disparities for lay users and physicians.
+  params: null
+  params_status: not published
+  dataset_scale_short: 108,585 images
+  backbone: >-
+    ViT-B/32 trained with CDANN (conditional domain adversarial neural
+    network) fairness-constrained training for study 1's binary
+    nevus/melanoma classification; DenseNet-121 for study 2's differential
+    diagnosis (5-class primary + 30-class secondary). Post hoc explanations
+    (GradCAM, CBIR, and a multimodal LLM -- GPT-4V) generated from the same
+    trained models' outputs; the paper studies XAI's effect on human
+    diagnostic decisions rather than introducing a new diagnostic model
+    architecture.
+  pretraining: [supervised]
+  pretraining_detail: >-
+    Supervised training with a CDANN domain-adversarial fairness constraint
+    across skin tones (study 1) and standard supervised training (study 2,
+    DenseNet-121). GPT-4V used off-the-shelf for explanation generation, not
+    fine-tuned.
+  data:
+    description: >-
+      108,585 clinical dermatology images (16 combined public/private
+      datasets) spanning multiple skin tones and conditions (nevus, melanoma,
+      atopic dermatitis, pityriasis rosea, Lyme disease, CTCL, others), with
+      18,265 images carrying expert-annotated Fitzpatrick skin-tone labels.
+      Evaluated via two human studies: 623 lay people (binary nevus/melanoma
+      task) and 153 primary care physicians plus 320 medical students
+      (differential diagnosis task).
+    scale:
+      images: 108585
+      images_with_fitzpatrick_labels: 18265
+      lay_participants: 623
+      physicians: 153
+      medical_students: 320
+  tasks: [classification, diagnosis]
+  tasks_detail: >-
+    Randomized 4x2 factorial study (4 XAI methods: basic, GradCAM, CBIR,
+    multimodal-LLM x 2 decision paradigms: Human-First, AI-First) measuring
+    how explanation type and decision order affect diagnostic accuracy,
+    automation bias and anchoring bias, comparing lay people against
+    experienced PCPs.
+  modalities: [clinical photography, text]
+  performance:
+    - benchmark: PCP differential diagnosis, top-1 / top-3 accuracy with AI assistance
+      metric: accuracy increase over no-AI baseline
+      value: top-1 +21.4pp (from 11.5%), top-3 +43.5pp (from 16.1%)
+      note: null
+    - benchmark: General public nevus/melanoma detection with AI assistance
+      metric: accuracy increase
+      value: +6.1pp (69.7% to 75.8%)
+      note: null
+    - benchmark: Skin-tone diagnostic accuracy disparity, with vs. without fairness-constrained AI
+      metric: relative reduction in disparity
+      value: 46.9% (general public), 35.6% (PCPs)
+      note: general public disparity 3.2% to 1.7%; PCP disparity 4.5% to 2.7%
+    - benchmark: Binary nevus/melanoma classifier (ViT-B/32 + CDANN)
+      metric: weighted AUROC
+      value: 0.930
+      note: 0.933 light skin / 0.898 dark skin (Delta = 0.035)
+    - benchmark: LLM (GPT-4V) explanation effect on general public accuracy
+      metric: accuracy change vs. no explanation
+      value: +7.7% when AI correct-leaning trust; -21.1% when AI incorrect
+      note: largest swing of the four XAI methods in both directions -- the paper's "double-edged sword" finding
+  verify:
+    - >-
+      Filled from the full-text PDF (not abstract-only) obtained via
+      manual download of the open-access-marked article. Parameter counts
+      for ViT-B/32 and DenseNet-121 are standard architecture names, not
+      counts the authors themselves state for their fine-tuned checkpoints,
+      so params is left null per house rules rather than computed from the
+      backbone name.
+    - >-
+      Routing: this paper's core diagnostic model is image-based (dermatology
+      falls under biomedical_images.md's scope per CONTRIBUTING.md's routing
+      rule 1), but the maintainer chose to file it under LLM.md instead since
+      the paper's actual contribution is about multimodal-LLM explanation
+      behavior. Flagged here in case biomedical_images's maintainers want it
+      cross-referenced.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-08
+  title: A clinically validated framework for auditing AI chatbot behavior in mental health interactions
+  url: https://www.nature.com/articles/s41591-026-04577-2
+  doi: 10.1038/s41591-026-04577-2
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Veith Weilnhammer
+      scholar: null
+    last:
+      name: Matthew M. Nour
+      scholar: null
+  model:
+    name: SIM-VAIL
+    repo: null
+  summary:
+    - A clinically validated auditing framework simulates vulnerable users in multi-turn conversations to test 9 frontier chatbots for mental-health safety failures.
+    - Concerning behavior was widespread across all 9 chatbots tested (Claude, GPT, Gemini, Grok, Llama), though reduced in newer model versions.
+    - Risk was highest in a pattern the authors call a VAIL, when supportive-seeming chatbot behavior reinforces the user's underlying psychological vulnerability.
+  summary_short: A validated framework audits nine chatbots for mental-health safety, finding widespread concerning behavior that eased in newer models.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 810 conversations
+  backbone: >-
+    An auditing framework, not a trained model. A claude-sonnet-4.5 auditor
+    LLM simulates vulnerable users against nine target chatbots
+    (claude-sonnet-3.7, claude-sonnet-4.5, gemini-2.5-flash, gemini-2.5-pro,
+    llama-3.1-70b-instruct, gpt-4o, gpt-5, grok-3, grok-4, accessed via
+    OpenRouter), scored by an automated safety judge (claude-opus-4.5 for
+    conversation-level scores, claude-sonnet-4.5 for turn-level scores).
+  data:
+    description: >-
+      810 simulated multi-turn conversations (30 clinically grounded user
+      profiles x 9 target chatbots x 3 repetitions), spanning 6,329 turns;
+      over 10,000 conversation-level and 90,000 turn-level mental-health risk
+      ratings across 13 clinically grounded risk dimensions. Validated against
+      488 turn-level ratings from 27 clinician annotators.
+    scale:
+      conversations: 810
+      turns: 6329
+      user_profiles: 30
+      target_chatbots: 9
+      clinician_annotators: 27
+  tasks: [benchmarking, risk prediction]
+  tasks_detail: >-
+    Audits mental-health safety behavior of nine frontier consumer AI
+    chatbots via simulated vulnerable users across 30 vulnerability x intent
+    profiles. Concerning behavior was widespread across target chatbots
+    (reduced in newer models), accumulated over conversation turns, and was
+    highest when otherwise-supportive chatbot behavior reinforced the
+    psychological mechanism underlying the simulated vulnerability -- a
+    pattern the authors term a VAIL.
+  modalities: [text]
+  performance:
+    - benchmark: Safety-judge inter-judge agreement (claude-opus-4.5 vs. gpt-5.2)
+      metric: correlation
+      value: r = 0.91
+      note: null
+    - benchmark: Safety judge vs. curated high/low-risk conversations
+      metric: median AUC
+      value: '0.98'
+      note: null
+    - benchmark: Human-LLM vs. human-human turn-level agreement (27 clinician annotators, 488 ratings)
+      metric: correlation
+      value: human-LLM r=0.49 vs. human-human r=0.41
+      note: automated ratings were at least as reliable as an independent clinical judgment
+    - benchmark: Simulated-conversation realism (27 clinician annotators)
+      metric: rated "broadly plausible" or "reads as genuine"
+      value: 80% (36% + 44%)
+      note: only 1% rated "clearly artificial"
+  verify:
+    - >-
+      Filled from the full-text PDF (open access, downloaded directly).
+      Per-model and per-vulnerability behavior breakdowns exist throughout
+      the paper; only headline validation/safety results were extracted here.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-06
+  title: Towards conversational artificial intelligence for disease management
+  url: https://www.nature.com/articles/s41586-026-10764-5
+  doi: 10.1038/s41586-026-10764-5
+  venue: Nature
+  authors:
+    first:
+      name: Valentin Liévin
+      scholar: null
+    last:
+      name: Mike Schaekermann
+      scholar: null
+  model:
+    name: AMIE (disease management)
+    repo: null
+  summary:
+    - AMIE's successor extends diagnostic dialogue to multivisit disease management -- treatment planning, monitoring and medication reasoning grounded in clinical guidelines via Gemini's long-context retrieval.
+    - In a randomized blinded OSCE study, AMIE was non-inferior to 21 PCPs and scored better on treatment preciseness and guideline grounding.
+    - On RxQA, a new drug-formulary reasoning benchmark, AMIE outperformed PCPs on the hardest medication questions.
+  summary_short: AMIE's successor was non-inferior to twenty-one primary care physicians on multivisit disease management and outperformed them on hard medication-reasoning questions.
+  params: null
+  params_status: not published
+  dataset_scale_short: 100 case scenarios
+  backbone: >-
+    LLM-based agentic system built on Gemini 2.5 Flash (evolved from earlier
+    AMIE versions built on Gemini 1.5 Flash), combining long-context
+    in-context retrieval of clinical guidelines and drug formularies with
+    structured reasoning, agent scaffolding, and reinforcement learning from
+    human/AI feedback for multivisit management dialogue.
+  pretraining: [supervised, reinforcement learning]
+  pretraining_detail: >-
+    Dialogue agent trained via supervised fine-tuning plus reinforcement
+    learning from human/AI feedback (reward model on human and LLM
+    preferences), with an agentic "Mx" management-reasoning module performing
+    guideline retrieval, draft generation, critique and revision, layered on
+    the Gemini 2.5 Flash long-context backbone.
+  data:
+    description: >-
+      Randomized, blinded virtual OSCE study: 100 multivisit case scenarios
+      across five medical specialties (built from UK NICE guidance and BMJ
+      Best Practice guidelines), AMIE vs. 21 primary care physicians,
+      evaluated by specialist physicians and patient actors. Medication
+      reasoning separately benchmarked via RxQA, a multiple-choice question
+      set derived from US and UK national drug formularies and validated by
+      board-certified pharmacists.
+    scale:
+      case_scenarios: 100
+      medical_specialties: 5
+      pcps: 21
+  tasks: [diagnosis, treatment response, question answering, planning]
+  tasks_detail: >-
+    Multivisit disease-management reasoning (treatment planning, investigation
+    selection, guideline-grounded monitoring and plan adjustment) compared
+    against 21 PCPs in a randomized blinded OSCE; separately benchmarks
+    medication/drug-formulary reasoning via RxQA.
+  modalities: [text]
+  performance:
+    - benchmark: OSCE management reasoning, AMIE vs. 21 PCPs (100 multivisit cases, 5 specialties)
+      metric: specialist-assessed outcome
+      value: non-inferior overall; better on treatment/investigation preciseness and guideline grounding
+      note: null
+    - benchmark: RxQA medication reasoning, higher-difficulty subset (pharmacist-rated)
+      metric: accuracy vs. PCPs
+      value: AMIE outperformed PCPs
+      note: both benefited significantly from access to external drug information
+    - benchmark: Backbone hallucination rate (Hughes Hallucination Evaluation Model leaderboard)
+      metric: hallucination rate
+      value: Gemini 1.5 Flash >5% -> Gemini 2.0 Flash 0.7%
+      note: illustrates rapid backbone improvement cited by the authors, not a result of this paper's own training
+  verify:
+    - >-
+      Filled from the full-text PDF (open access, downloaded directly). The
+      RxQA benchmark has a public repo (github.com/google-health/rxqa); AMIE
+      itself has no public repo, so model.repo is left null rather than
+      pointing to the benchmark repo.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-06
+  title: "Generative AI-enabled clinical decision support system in primary care: a pragmatic, cluster-randomized trial"
+  url: https://www.nature.com/articles/s41591-026-04503-6
+  doi: 10.1038/s41591-026-04503-6
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Ambrose Agweyu
+      scholar: null
+    last:
+      name: Bilal A. Mateen
+      scholar: null
+  model:
+    name: AI Consult (v2.0)
+    repo: null
+  summary:
+    - A GPT-4o-based clinical decision support tool embedded in the EMR was tested in a real-world cluster-randomized trial across 16 Kenyan primary care facilities.
+    - LLM assistance did not significantly reduce 14-day treatment failure (2.2% vs. 2.0% control, P = 0.13) -- a rare rigorously tested null result for this kind of tool.
+    - No safety signal was identified, and the intervention cost about 4 cents per patient in LLM inference.
+  summary_short: A GPT-4o-based decision support tool in a Kenyan primary-care trial did not reduce treatment failure; it caused no safety signal.
+  params: null
+  params_status: not published
+  dataset_scale_short: 9,691 patients
+  backbone: >-
+    Custom LLM-based CDSS ("AI Consult", version 2.0) embedded in Penda
+    Health's EMR, built on GPT-4o (May 2025 release; temperature 0.1, top-p
+    1.0, 1024-token max output), with structured system prompts defining
+    clinical role and scope aligned to Kenyan national treatment guidelines,
+    and rule-based, version-controlled prompt logic for color-coded severity
+    alerts.
+  pretraining_detail: >-
+    Uses GPT-4o off-the-shelf (not fine-tuned); clinical alignment is achieved
+    entirely through structured system prompts and version-controlled
+    prompt-based alert logic rather than model training.
+  data:
+    description: >-
+      Pragmatic cluster-randomized trial across 16 primary care facilities in
+      Nairobi/Kiambu, Kenya (Penda Health network). 103 clinical officers (52
+      intervention, 51 control) randomized; 9,691 patients analyzed (4,693
+      intervention, 4,654 control) between 22 April and 16 July 2025.
+    scale:
+      facilities: 16
+      clinical_officers: 103
+      patients_analyzed: 9691
+  tasks: [clinical decision support, diagnosis, treatment response]
+  tasks_detail: >-
+    Cluster-randomized (by clinical officer) trial of an always-on,
+    prompt-triggered LLM clinical decision support tool embedded in the EMR
+    for real-world low-resource primary care, measuring 14-day treatment
+    failure, documentation quality, prescribing, patient satisfaction and
+    safety.
+  modalities: [text, EHR]
+  performance:
+    - benchmark: Primary outcome, 14-day treatment failure, intervention vs. control (9,691 patients, 103 clinical officers)
+      metric: adjusted odds ratio
+      value: 'OR 0.77 (95% CI 0.55-1.08), P = 0.13'
+      note: 2.2% intervention vs. 2.0% control; not statistically significant
+    - benchmark: Safety
+      metric: adverse events attributed to the intervention
+      value: '0 serious adverse events; no safety signal on independent review'
+      note: null
+    - benchmark: Per-patient LLM cost (intervention arm)
+      metric: mean cost
+      value: US$0.04 (95% CI 0.04-0.04)
+      note: null
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-06
+  title: "BRIDGE: benchmarking large language models for understanding real-world clinical practice texts"
+  url: https://www.nature.com/articles/s41551-026-01719-2
+  doi: 10.1038/s41551-026-01719-2
+  venue: Nat. Biomed. Eng.
+  authors:
+    first:
+      name: Jiageng Wu
+      scholar: https://scholar.google.co.uk/citations?user=vz5MGDoAAAAJ&hl=en&oi=ao
+    last:
+      name: Jie Yang
+      scholar: null
+  model:
+    name: BRIDGE
+    repo: null
+  summary:
+    - A multilingual benchmark of 87 real-world clinical NLP tasks (triage, extraction, diagnosis, billing coding and more) across 9 languages and 14 specialties.
+    - 95 LLMs were evaluated, including DeepSeek-R1, GPT-4o, Gemini and Qwen3, revealing large performance gaps by language, task type and specialty.
+    - Open-source models matched proprietary ones, while older medically fine-tuned models often lagged behind newer general-purpose LLMs.
+  summary_short: A multilingual NLP benchmark spanning 87 tasks and 95 LLMs found open-source models matching proprietary ones, outperforming older medical fine-tunes.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 87 tasks, 95 models
+  backbone: >-
+    Benchmarking framework introducing no new model architecture. Evaluates 95
+    existing LLMs, including DeepSeek-R1, GPT-4o, Gemini and Qwen3, under
+    multiple inference strategies.
+  data:
+    description: >-
+      87 clinical NLP tasks sourced from 59 real-world clinical data sources
+      across 9 languages and 14 clinical specialties, spanning the patient
+      care continuum (triage, information extraction, diagnosis, prognosis,
+      billing coding).
+    scale:
+      tasks: 87
+      clinical_data_sources: 59
+      languages: 9
+      specialties: 14
+      models_evaluated: 95
+  tasks: [triage, information extraction, diagnosis, prognosis, billing coding, benchmarking]
+  tasks_detail: >-
+    Multilingual benchmark across eight task types covering the patient care
+    continuum. Open-source LLMs matched proprietary models; medically
+    fine-tuned models on older backbones often lagged updated general-purpose
+    LLMs.
+  modalities: [text]
+  performance: []
+  verify:
+    - >-
+      Filled from the Europe PMC abstract only; full text and the leaderboard
+      site were not fetched for this pass. No per-model performance numbers
+      are quoted in the abstract, so `performance` is left empty.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-06
+  title: Evaluating the robustness and readiness of large frontier models in health AI applications
+  url: https://www.nature.com/articles/s41591-026-04501-8
+  doi: 10.1038/s41591-026-04501-8
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Yu Gu
+      scholar: https://scholar.google.co.uk/citations?user=1PoaURIAAAAJ&hl=en&oi=ao
+    last:
+      name: Paul Vozila
+      scholar: null
+  model:
+    name: Health AI robustness stress-test suite
+    repo: null
+    weights: https://doi.org/10.5281/zenodo.20047288
+  summary:
+    - Adversarial stress tests were applied to 10 flagship frontier models (GPT-5, Gemini 2.5 Pro, Claude 3.5 Sonnet, MedGemma and others) across popular health AI benchmarks.
+    - Models could often guess correct answers with key inputs removed, yet were derailed by trivial prompt changes and fabricated plausible-sounding but flawed reasoning.
+    - Popular health benchmarks vary widely in what they actually measure, exposing a gap between benchmark scores and real robustness.
+  summary_short: Adversarial stress tests on ten frontier models exposed brittle reasoning and fabricated explanations behind popular health AI benchmarks.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 10 models tested
+  backbone: >-
+    Adversarial stress-test suite applied to flagship frontier models (GPT-4o,
+    GPT-5, OpenAI o3, OpenAI o4-mini, Gemini 2.5 Pro, Claude 3.5 Sonnet,
+    DeepSeek-VL2, Qwen3-VL, LLaVA-Med 1.5, MedGemma) rather than a new model
+    itself.
+  data:
+    description: >-
+      Clinician-guided rubrics applied to popular health AI benchmarks under a
+      series of adversarial transformations (key-input removal, prompt
+      alterations) to probe multimodal medical reasoning robustness.
+  tasks: [benchmarking, reasoning]
+  tasks_detail: >-
+    Adversarial stress testing reveals brittleness: models can guess correct
+    answers with key inputs removed, yet are confused by minor prompt changes
+    and fabricate convincing but flawed reasoning traces. Popular health
+    benchmarks vary widely in what they actually measure.
+  modalities: [multimodal, text]
+  performance: []
+  verify:
+    - >-
+      Filled from the Europe PMC abstract only. The list of ten frontier
+      models tested is carried over from the earlier hand-maintained table
+      (sourced from the paper's Zenodo code release, not re-verified this
+      pass) -- flag for confirmation against the paper itself.
+    - No quantitative results are stated in the abstract, so `performance` is left empty.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-06
+  title: General-purpose large language models outperform specialized clinical AI tools on medical benchmarks
+  url: https://www.nature.com/articles/s41591-026-04431-5
+  doi: 10.1038/s41591-026-04431-5
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Krithik Vishwanath
+      scholar: null
+    last:
+      name: Eric Karl Oermann
+      scholar: null
+  model:
+    name: Frontier LLM vs. clinical AI tool benchmark
+    repo: null
+  summary:
+    - A head-to-head evaluation pits three frontier LLMs (GPT-5.2, Gemini 3.1 Pro, Claude Opus 4.6) against two proprietary clinical AI tools (OpenEvidence, UpToDate Expert AI) across MedQA, HealthBench and 100 real clinical queries.
+    - Frontier LLMs beat clinical AI tools in all three evaluations; Gemini scored highest on MedQA at 97.4% vs. OpenEvidence's 89.6% and UpToDate's 88.4%.
+    - On real clinical queries reviewed blindly by 12 clinicians, specialized clinical AI tools performed no better than Google Search's AI Overview.
+  summary_short: Frontier LLMs (GPT-5.2, Gemini 3.1 Pro, Claude Opus 4.6) beat specialized clinical AI tools (OpenEvidence, UpToDate) across three medical benchmarks.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 1,800 clinician annotations
+  backbone: >-
+    Comparative evaluation of two proprietary clinical AI tools (OpenEvidence,
+    UpToDate Expert AI; architectures undisclosed) against three frontier
+    LLMs (GPT-5.2, Gemini 3.1 Pro, Claude Opus 4.6), plus Google Search AI
+    Overview as a real-world control. Introduces no new model.
+  data:
+    description: >-
+      Three-stage evaluation: 500 MedQA (USMLE-style) questions, 500
+      HealthBench items measuring clinician alignment, and a new real
+      clinical queries (RCQ) benchmark of 100 de-identified physician queries
+      from live clinical deployment, reviewed blindly by 12 US clinicians
+      (1,800 model-question annotations).
+    scale:
+      medqa_questions: 500
+      healthbench_items: 500
+      real_clinical_queries: 100
+      clinician_annotations: 1800
+      clinician_reviewers: 12
+  tasks: [question answering, benchmarking, reasoning]
+  tasks_detail: >-
+    Compares frontier general-purpose LLMs against specialized proprietary
+    clinical AI tools on medical knowledge (MedQA), clinician alignment
+    (HealthBench) and real-world physician queries (RCQ), finding frontier
+    LLMs outperform clinical tools at every stage and that clinical tools
+    matched only Google's AI Overview.
+  modalities: [text]
+  performance:
+    - benchmark: MedQA (500 USMLE-style questions)
+      metric: accuracy
+      value: Gemini 3.1 Pro 97.4% > GPT-5.2 94.2% > Claude Opus 4.6 90.2% > OpenEvidence 89.6% > UpToDate 88.4%
+      note: Gemini outperformed all others (P < 1e-4 vs. OpenEvidence/UpToDate/Claude, P = 0.02 vs. GPT)
+    - benchmark: RCQ clinician rating, rater-leniency adjusted (1,800 annotations, 12 clinicians)
+      metric: odds of a higher rating vs. Gemini
+      value: clinical AI tools (incl. Google AI Overview) had 49-87% lower odds (OR 0.13-0.51)
+      note: all P < 0.0001; frontier models beat clinical tools on individual questions, not just averages (rank-biserial r = 0.5-0.9)
+    - benchmark: RCQ vs. Google Search AI Overview
+      metric: comparative clinician rating
+      value: clinical AI tools scored no better than Google AI Overview
+      note: null
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-05
+  title: Advancing conversational diagnostic AI with multimodal reasoning
+  url: https://www.nature.com/articles/s41591-026-04371-0
+  doi: 10.1038/s41591-026-04371-0
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Khaled Saab
+      scholar: null
+    last:
+      name: Ryutaro Tanno
+      scholar: null
+  model:
+    name: Multimodal AMIE
+    repo: null
+  summary:
+    - A multimodal extension of AMIE gathers, interprets and reasons over dermatology photos, ECGs and clinical documents within a diagnostic conversation, not just text.
+    - In a randomized study of 105 simulated telehealth consultations judged by 18 specialists, multimodal AMIE outperformed PCPs on 29 of 32 evaluation axes.
+    - A state-aware dialogue framework that adapts history-taking to diagnostic uncertainty was key to bridging text and visual reasoning.
+  summary_short: A multimodal extension of AMIE, built on Gemini 2.0 Flash, outperformed primary care physicians on 29 of 32 evaluation axes.
+  params: null
+  params_status: not published
+  dataset_scale_short: 105 telehealth cases
+  backbone: >-
+    Multimodal AMIE, built on Gemini 2.0 Flash, extending the AMIE
+    conversational diagnostic system with a state-aware dialogue framework
+    that dynamically guides history-taking based on diagnostic uncertainty
+    and evolving patient state.
+  data:
+    description: >-
+      Randomized, blinded exploratory study: 105 simulated telehealth
+      consultations including dermatology photographs, ECGs and clinical
+      documents, judged by 18 specialist physicians against primary care
+      physicians across 32 evaluation axes.
+    scale:
+      simulated_consultations: 105
+      specialist_judges: 18
+      evaluation_axes: 32
+  tasks: [diagnosis, reasoning, question answering]
+  tasks_detail: >-
+    Multimodal diagnostic dialogue combining history-taking, interpretation
+    of visual/document evidence and structured reasoning, evaluated against
+    PCPs on diagnostic accuracy and conversation quality (history-taking,
+    empathy).
+  modalities: [text, clinical photography, ECG, multimodal]
+  performance:
+    - benchmark: Multimodal AMIE vs. PCPs (105 consultations, 18 specialist judges)
+      metric: evaluation axes won
+      value: 29 of 32 axes, including 7 of 9 multimodal-reasoning metrics
+      note: null
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-04
+  title: Performance of a large language model on the reasoning tasks of a physician
+  url: https://www.science.org/doi/10.1126/science.adz4433
+  doi: 10.1126/science.adz4433
+  venue: Science
+  authors:
+    first:
+      name: Peter G. Brodeur
+      scholar: null
+    last:
+      name: Adam Rodman
+      scholar: null
+  model:
+    name: LLM physician-reasoning evaluation
+    repo: null
+  summary:
+    - Across five experiments benchmarked against hundreds of physicians on classic diagnostic reasoning cases, OpenAI's o1-preview outperformed physician baselines and GPT-4 in every experiment.
+    - On 20 NEJM Healer virtual-patient cases, o1-preview achieved a perfect clinical-reasoning (R-IDEA) score in 78 of 80 case reviews.
+    - A real-world study in a tertiary academic emergency room compared o1-series second opinions against human expert second opinions on randomly selected patients, with face validity as a proof of concept.
+  summary_short: OpenAI's o1-preview outperformed physician baselines and GPT-4 across five diagnostic reasoning experiments and a real-world emergency room comparison.
+  params: null
+  params_status: not published
+  dataset_scale_short: hundreds of physicians
+  backbone: >-
+    OpenAI's o1 series (primarily o1-preview), evaluated against GPT-4 and
+    physician baselines on physician-authored diagnostic reasoning cases.
+  data:
+    description: >-
+      Five experiments comparing o1-preview to a baseline of hundreds of
+      physicians on classic clinical diagnostic reasoning cases (including
+      20 NEJM Healer virtual-patient cases), plus a real-world study
+      comparing human-expert and AI second opinions on randomly selected
+      emergency room patients at a tertiary academic medical center.
+    scale:
+      nejm_healer_cases: 20
+  tasks: [diagnosis, reasoning, benchmarking]
+  tasks_detail: >-
+    Physician-evaluation of o1-preview against the 65-year-old gold-standard
+    format for expert medical computing systems (complex diagnostic
+    reasoning cases), plus a real-world emergency room second-opinion
+    comparison (proof of concept, not diagnostic-accuracy-focused since ED
+    decisions center on triage/disposition).
+  modalities: [text]
+  performance:
+    - benchmark: NEJM Healer diagnostic reasoning cases (20 cases, R-IDEA 10-point scale)
+      metric: perfect R-IDEA score rate
+      value: 78 of 80 case reviews (2 reviewers x ~40 cases each)
+      note: reviewer agreement 99% (kappa = 0.89); significantly higher than the prior GPT-4 study these cases were drawn from
+    - benchmark: Across all 5 experiments vs. physician and GPT-4 baselines
+      metric: outperformance
+      value: o1-preview outperformed both physician baselines and GPT-4 in every experiment
+      note: authors note gains were not always robust for "cannot-miss" diagnoses in NEJM Healer and landmark diagnostic cases
+  verify:
+    - >-
+      Filled from the full-text PDF (manually downloaded by the maintainer;
+      science.org returns a Cloudflare bot-check page on automated requests,
+      which was not attempted to be defeated). params_status updated to
+      "not published" -- OpenAI does not disclose o1-series parameter
+      counts, now confirmed as the model in question.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-04
+  title: Graph augmented transformers improve chemotherapy toxicity symptom extraction from clinical notes
+  url: https://www.nature.com/articles/s41467-026-72347-2
+  doi: 10.1038/s41467-026-72347-2
+  venue: Nat. Commun.
+  authors:
+    first:
+      name: Elia Saquand
+      scholar: null
+    last:
+      name: Tina Hernandez-Boussard
+      scholar: null
+  model:
+    name: GAT-CN
+    repo: null
+  summary:
+    - GAT-CN embeds clinical notes with Bio+ClinicalBERT and links them to symptom terms within a heterogeneous clinical graph learned via GraphSAGE.
+    - Across 1,753 patients receiving acute cancer care, GAT-CN outperformed transformer-only models at multi-symptom classification, reaching 0.850 weighted AUROC.
+    - The model surfaced additional chemotherapy-related diagnoses missed by structured EHR data, confirmed through manual chart review.
+  summary_short: GAT-CN combines Bio+ClinicalBERT embeddings with graph neural networks to extract chemotherapy toxicity symptoms, reaching 0.850 weighted AUROC.
+  params: null
+  params_status: unchecked
+  dataset_scale_short: 1,753 patients
+  backbone: >-
+    Graph-Augmented Transformer for Clinical Notes (GAT-CN): notes embedded
+    with Bio+ClinicalBERT, linked to symptom-related terms within a
+    heterogeneous clinical graph learned using GraphSAGE.
+  data:
+    description: >-
+      1,753 patients who received acute care for chemotherapy-related
+      toxicity; clinical notes plus structured EHR data, with symptom
+      categories including pain (1,140 patients) and additional diagnoses
+      recovered from notes and confirmed via manual annotation.
+    scale:
+      patients: 1753
+  tasks: [classification, clinical decision support]
+  tasks_detail: >-
+    Multi-symptom classification extracting chemotherapy-related toxicity
+    symptoms from unstructured clinical notes to support earlier monitoring
+    of acute care events (emergency department visits, hospitalizations).
+  modalities: [text, EHR]
+  performance:
+    - benchmark: Multi-symptom classification (1,753 patients)
+      metric: weighted AUROC / AUPRC
+      value: AUROC 0.850, AUPRC 0.812
+      note: outperformed transformer-only baselines
+  verify:
+    - >-
+      Filled from the full-text PDF (open access, downloaded directly).
+      Bio+ClinicalBERT is a BERT-family encoder, not a generative LLM in
+      the GPT/Gemini sense -- included under LLM.md's "medical language
+      models and clinical NLP" scope rather than the narrower "LLM" sense.
+    - "params_status unchecked: parameter count not looked up for Bio+ClinicalBERT/GraphSAGE."
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-03
+  title: Grounding large language models in clinical diagnostics
+  url: https://www.nature.com/articles/s41467-026-70274-w
+  doi: 10.1038/s41467-026-70274-w
+  venue: Nat. Commun.
+  authors:
+    first:
+      name: Xi Chen
+      scholar: null
+    last:
+      name: Kang Li
+      scholar: null
+  model:
+    name: ClinDiag-GPT
+    repo: https://github.com/geteff1/ClinDiag
+  summary:
+    - ClinDiag-GPT is fine-tuned to execute full iterative diagnostic procedures, not just answer static medical questions, using a new 4,421-case benchmark.
+    - It outperformed GPT-4o, GPT-4o-mini, Claude-3-Haiku and three Qwen2.5 baselines on both diagnostic accuracy and procedural performance.
+    - Physician-ClinDiag-GPT collaboration achieved higher diagnostic accuracy and efficiency than either the physician or the model working alone.
+  summary_short: ClinDiag-GPT, fine-tuned for full diagnostic workflows, outperformed GPT-4o, Claude-3-Haiku and Qwen2.5 baselines on a 4,421-case benchmark.
+  params: null
+  params_status: unchecked
+  dataset_scale_short: 4,421 clinical cases
+  backbone: >-
+    ClinDiag-GPT, a specialized LLM fine-tuned on clinical cases for
+    iterative diagnostic workflows (base foundation model not stated in the
+    accessible text). Evaluated against GPT-4o-mini, GPT-4o, Claude-3-Haiku
+    and Qwen2.5-72b/32b/14b as baselines.
+  data:
+    description: >-
+      ClinDiag-Benchmark: 4,421 real-world clinical cases spanning 32
+      medical specialties across three subsets (Challenging Case, Emergency
+      Case, Rare Disease), sourced from MIMIC-IV-Ext, a prior rare-disease
+      dataset, and published case reports.
+    scale:
+      clinical_cases: 4421
+      medical_specialties: 32
+  tasks: [diagnosis, reasoning, benchmarking]
+  tasks_detail: >-
+    Executes full iterative diagnostic procedures (not static question
+    answering) via the ClinDiag-Framework evaluation system, benchmarked
+    against six baseline LLMs and evaluated for physician-AI collaboration.
+  modalities: [text]
+  performance:
+    - benchmark: ClinDiag-Benchmark (4,421 cases) vs. 6 baseline LLMs
+      metric: diagnostic accuracy and procedural performance
+      value: ClinDiag-GPT outperformed all baselines (GPT-4o-mini, GPT-4o, Claude-3-Haiku, Qwen2.5-72b/32b/14b)
+      note: exact accuracy percentages not extracted from the accessible text
+  verify:
+    - >-
+      Filled from the full-text PDF (open access, downloaded directly).
+      ClinDiag-GPT's own base foundation model was not stated in the
+      sections read; only the six baseline models it is compared against
+      are named.
+    - "params_status unchecked: base model unconfirmed, so no parameter count could be looked up."
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-03
+  title: "TrialMatchAI: an end-to-end AI-powered clinical trial recommendation system to streamline patient-to-trial matching"
+  url: https://www.nature.com/articles/s41467-026-70509-w
+  doi: 10.1038/s41467-026-70509-w
+  venue: Nat. Commun.
+  authors:
+    first:
+      name: Majd Abdallah
+      scholar: null
+    last:
+      name: Macha Nikolski
+      scholar: null
+  model:
+    name: TrialMatchAI
+    repo: null
+  summary:
+    - TrialMatchAI automates patient-to-trial matching from structured records and unstructured physician notes using fine-tuned open-source LLMs in a RAG pipeline.
+    - A fine-tuned Gemma-2-2b model re-ranks candidate trials, and a fine-tuned Phi-4 model performs criterion-level eligibility classification with medical chain-of-thought reasoning.
+    - In real-world validation, 92% of oncology patients had a relevant trial retrieved in the top 20 recommendations, with over 90% eligibility-classification accuracy.
+  summary_short: TrialMatchAI, built on fine-tuned Gemma-2-2b and Phi-4 models with retrieval-augmented reasoning, retrieved a relevant trial for 92% of oncology patients.
+  params: null
+  params_status: not published
+  dataset_scale_short: 92% patients matched
+  backbone: >-
+    Retrieval-augmented pipeline: BM25 lexical + k-NN semantic retrieval
+    (Elasticsearch) for candidate trials, a fine-tuned Gemma-2-2b model for
+    criterion-level re-ranking, and a fine-tuned Phi-4 model for eligibility
+    classification via medical chain-of-thought reasoning.
+  data:
+    description: >-
+      Synthetic "Ideal Candidates" patient profiles from cancer-related
+      trials with long/complex eligibility criteria, plus publicly available
+      TREC Clinical Trials track summaries, and real-world validation on
+      oncology patients.
+  tasks: [clinical decision support, reasoning, classification]
+  tasks_detail: >-
+    End-to-end patient-to-trial matching: biomedical entity normalization,
+    hybrid lexical/semantic candidate retrieval, criterion-level re-ranking
+    and chain-of-thought eligibility classification with traceable
+    explanations, deployable locally for privacy.
+  modalities: [text, EHR]
+  performance:
+    - benchmark: Real-world oncology patient validation
+      metric: relevant trial retrieved in top-20 recommendations
+      value: '92%'
+      note: null
+    - benchmark: Criterion-level eligibility classification (expert-assessed)
+      metric: accuracy
+      value: over 90%, particularly strong on biomarker-driven matches
+      note: null
+    - benchmark: End-to-end runtime per patient
+      metric: average time
+      value: ~4.6 min (2.7s retrieval, 92.7s re-ranking, 180.7s CoT reasoning)
+      note: vs. 10 min to 2+ hours for manual eligibility screening per trial
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-05
+  title: A cognitive layer architecture to support large-language model performance in psychotherapy interactions
+  url: https://www.nature.com/articles/s41591-026-04278-w
+  doi: 10.1038/s41591-026-04278-w
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Max Rollwage
+      scholar: null
+    last:
+      name: Ross Harper
+      scholar: null
+  model:
+    name: Cognitive layer architecture (psychotherapy LLM)
+    repo: null
+  summary:
+    - A cognitive layer architecture adds specialized clinical psychotherapeutic reasoning to general-purpose LLMs, tested across four base models (GPT-4, Claude, Gemini, Llama 3).
+    - In a randomized double-blind evaluation judged by 22 expert clinicians, cognitive-layer agents outperformed both standalone LLMs and human clinicians on CBT competencies, independent of the specific base LLM.
+    - Validated on 19,674 real-world transcripts from 8,920 users, greater cognitive-layer activation was associated with more symptom improvement and long-term clinical recovery.
+  summary_short: A cognitive layer architecture, tested across GPT-4, Claude, Gemini and Llama 3, outperformed standalone LLMs and human clinicians on CBT competencies.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 19,674 transcripts
+  backbone: >-
+    A cognitive layer architecture layered on top of four general-purpose
+    base LLMs (GPT-4, Claude, Gemini and Llama 3), each tested standalone
+    and enhanced with the cognitive layer (2 architectures x 4 base LLMs = 8
+    experimental AI conditions), adding specialized clinical
+    psychotherapeutic reasoning for patient-facing interactions.
+  data:
+    description: >-
+      Randomized double-blind evaluation: 227 participants generated
+      naturalistic mental-well-being session transcripts across 8
+      experimental AI conditions (cognitive-layer agents, n=101: Claude 25,
+      Gemini 26, GPT-4 26, Llama 3 24; standalone LLMs, n=100: Claude 25,
+      Gemini 24, GPT-4 27, Llama 3 24) plus a human-clinician arm, assessed
+      by 22 expert clinicians. Validated on 19,674 real-world transcripts
+      from a large-scale deployment supporting 8,920 users.
+    scale:
+      rct_participants: 227
+      expert_clinicians: 22
+      real_world_transcripts: 19674
+      real_world_users: 8920
+  tasks: [clinical decision support, reasoning, question answering]
+  tasks_detail: >-
+    Patient-facing cognitive-behavioral therapy conversations; the cognitive
+    layer architecture augments general-purpose LLMs with specialized
+    psychotherapeutic reasoning, evaluated against standalone LLMs (same 4
+    base models) and human clinicians on key clinical competencies.
+  modalities: [text]
+  performance:
+    - benchmark: RCT vs. standalone LLMs and human clinicians, across 4 base LLMs (227 participants, 22 expert raters)
+      metric: clinical competency ratings
+      value: cognitive-layer-augmented LLMs outperformed both standalone LLMs and human clinicians
+      note: performance uplift was independent of the specific base LLM (GPT-4, Claude, Gemini or Llama 3)
+    - benchmark: Real-world deployment (19,674 transcripts, 8,920 users, ~10-week follow-up)
+      metric: association with symptom improvement
+      value: increased cognitive-layer activation associated with greater improvement and higher long-term recovery likelihood
+      note: null
+  verify:
+    - Filled from the full-text PDF (manually downloaded by the maintainer; main text is paywalled with no OA route).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-03
+  title: A clinical environment simulator for dynamic AI evaluation
+  url: https://www.nature.com/articles/s41591-026-04252-6
+  doi: 10.1038/s41591-026-04252-6
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Luyang Luo
+      scholar: null
+    last:
+      name: Pranav Rajpurkar
+      scholar: null
+  model:
+    name: Clinical Environment Simulator (CES)
+    repo: null
+  summary:
+    - The Clinical Environment Simulator proposes evaluating clinical LLMs inside dynamic digital hospital environments instead of static datasets and isolated scenarios.
+    - A parallel "hospital engine" (beds, staff, equipment) and "patient engine" (disease progression, treatment response) let every LLM decision alter future states.
+    - CES targets three gaps in current benchmarks -- temporal reasoning, resource-aware decision-making and operational resilience under adversarial conditions.
+  summary_short: A proposed Clinical Environment Simulator evaluates LLMs within dynamic digital hospital environments, testing temporal reasoning, resource tradeoffs and resilience.
+  params: null
+  params_status: n/a
+  backbone: >-
+    A proposed evaluation framework (Clinical Environment Simulator, CES),
+    not a trained model: a parallel simulation architecture pairing a
+    "hospital engine" (bed availability, staffing, equipment) with a
+    "patient engine" (disease progression, treatment response) to score
+    clinical LLM decisions dynamically via realistic EHR interfaces.
+  data:
+    description: >-
+      Conceptual framework proposal; no completed empirical evaluation run
+      through CES itself.
+  tasks: [reasoning, benchmarking, planning]
+  tasks_detail: >-
+    Proposes evaluating clinical LLMs on temporal reasoning under evolving
+    constraints, resource-aware decision-making (individual vs. system-wide
+    tradeoffs), and operational resilience via adversarial testing
+    (simultaneous emergencies, system failures) -- capabilities absent from
+    static benchmarks.
+  modalities: [text]
+  performance: []
+  verify:
+    - >-
+      Filled from the full-text PDF (manually downloaded by the maintainer;
+      main text is paywalled with no OA route). Confirmed by the paper's own
+      header: it is published as a "Perspective," not a research Article,
+      and the full text confirms it proposes CES without a completed
+      empirical implementation -- "performance" stays empty accordingly, not
+      as a placeholder for missing access.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-01
+  title: "A community-codesigned LLM-powered chatbot for primary care: a randomized controlled trial"
+  url: https://www.nature.com/articles/s44360-025-00021-w
+  doi: 10.1038/s44360-025-00021-w
+  venue: Nat. Health
+  authors:
+    first:
+      name: Sairan Li
+      scholar: null
+    last:
+      name: Shasha Han
+      scholar: null
+  model:
+    name: P&P Care
+    repo: null
+  summary:
+    - P&P Care is an LLM-powered primary care chatbot codesigned with Chinese community stakeholders via a dual-track role-play framework across four development phases.
+    - In a 2,113-participant RCT across 11 Chinese provinces, the e-learning-integrated chatbot group showed significantly higher objective health awareness than consultation-only controls.
+    - The codesign approach, not just the underlying LLM, is presented as the scalable ingredient for deploying chatbots in resource-limited primary care settings.
+  summary_short: A GPT-4o-mini-powered chatbot, codesigned with Chinese community stakeholders, significantly improved health awareness in a 2,113-participant randomized trial.
+  params: null
+  params_status: not published
+  dataset_scale_short: 2,113 participants
+  backbone: >-
+    P&P Care (Population Medicine and Public Health): prototyped on GPT-4,
+    deployed as a GPT-4o mini (OpenAI)-powered chatbot, codesigned with
+    community stakeholders via a dual-track role-play framework.
+  data:
+    description: >-
+      Randomized controlled trial: 2,113 participants (1,052 women, 1,061
+      men) from urban and rural areas across 11 Chinese provinces, randomized
+      to receive a consultation with or without preparatory P&P Care
+      e-learning.
+    scale:
+      participants: 2113
+      provinces: 11
+  tasks: [patient communication, question answering]
+  tasks_detail: >-
+    LLM-powered primary care chatbot integrated with e-learning modules,
+    codesigned with community stakeholders across contextual understanding,
+    cocreation, testing/refinement and implementation/evolution phases.
+  modalities: [text]
+  performance:
+    - benchmark: Objective health awareness, e-learning group vs. consultation-only (2,113 participants)
+      metric: mean score
+      value: 2.95 +/- 1.22 vs. 2.34 +/- 1.02
+      note: P < 0.001
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-03
+  title: "An LLM chatbot to facilitate primary-to-specialist care transitions: a randomized controlled trial"
+  url: https://www.nature.com/articles/s41591-025-04176-7
+  doi: 10.1038/s41591-025-04176-7
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Xinge Tao
+      scholar: null
+    last:
+      name: Shasha Han
+      scholar: null
+  model:
+    name: PreA
+    repo: null
+  summary:
+    - PreA is an LLM chatbot co-designed with local stakeholders to perform general medical consultations (history-taking, preliminary diagnosis, test ordering) before specialist visits.
+    - In a 2,069-patient RCT across 111 specialists and 24 disciplines, PreA-only use cut physician consultation time by 28.7% versus no-PreA.
+    - Co-designed PreA outperformed the same base model further fine-tuned on local dialogues, arguing codesign beats passive local data collection for LLM deployment.
+  summary_short: PreA, an LLM chatbot for primary-to-specialist transitions, cut physician consultation time by 28.7% and significantly improved care coordination.
+  params: null
+  params_status: unchecked
+  dataset_scale_short: 2,069 patients
+  backbone: >-
+    PreA (preassessment): an LLM chatbot co-designed with local stakeholders
+    (specific base LLM not stated in the accessible text), compared against
+    the same model with additional fine-tuning on local dialogues.
+  data:
+    description: >-
+      Randomized controlled trial: 2,069 patients (1,141 women, 928 men)
+      across two health centers and 111 specialists spanning 24 medical
+      disciplines, randomized to PreA-only, PreA-human (staff-supported) or
+      No-PreA arms.
+    scale:
+      patients: 2069
+      specialists: 111
+      disciplines: 24
+  tasks: [diagnosis, patient communication, clinical decision support]
+  tasks_detail: >-
+    History-taking, preliminary diagnosis, test ordering and referral-report
+    generation for primary-to-specialist transitions, compared across
+    PreA-only, PreA-with-staff-support and no-PreA arms.
+  modalities: [text]
+  performance:
+    - benchmark: Physician consultation duration, PreA-only vs. No-PreA (2,069 patients)
+      metric: mean duration
+      value: 3.14 +/- 2.25 min vs. 4.41 +/- 2.77 min
+      note: 28.7% reduction, P < 0.001
+    - benchmark: Physician-perceived care coordination
+      metric: mean score
+      value: 3.69 +/- 0.90 vs. 1.73 +/- 0.95
+      note: 113.1% increase, P < 0.001
+    - benchmark: Patient-reported communication ease
+      metric: mean score
+      value: 3.99 +/- 0.62 vs. 3.44 +/- 0.97
+      note: 16.0% increase, P < 0.001
+  verify:
+    - >-
+      Filled from the full-text PDF (open access, downloaded directly).
+      PreA's specific base LLM was not stated in the sections read.
+    - "params_status unchecked: base model unconfirmed, so no parameter count could be looked up."
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2025-12
+  title: "A large language model for clinical outcome adjudication from telephone follow-up interviews: a secondary analysis of a multicenter randomized clinical trial"
+  url: https://www.nature.com/articles/s41467-025-66910-6
+  doi: 10.1038/s41467-025-66910-6
+  venue: Nat. Commun.
+  authors:
+    first:
+      name: Zhao Shi
+      scholar: null
+    last:
+      name: Long Jiang Zhang
+      scholar: null
+  model:
+    name: Fu-LLM
+    repo: null
+  summary:
+    - Fu-LLM automates preadjudication of clinical trial outcomes (death, hospitalization, medication use) from telephone follow-up call transcripts.
+    - Fine-tuned from Qwen2-7B, it outperformed general-purpose LLMs (GPT-3.5-turbo, GPT-4o, DeepSeek-v3, Claude 3.5 Sonnet, Gemini-2.0-Pro), an SVM baseline, and human adjudicators.
+    - Fu-LLM also showed greater robustness than different GPT-4 versions in temporal drift tests, evaluated on 1,046 vignettes from a 3-center RCT.
+  summary_short: Fu-LLM, fine-tuned from Qwen2-7B, automated clinical-trial outcome adjudication, outperforming GPT-4o, Claude 3.5 Sonnet, Gemini and human adjudicators.
+  params: null
+  params_status: not published
+  dataset_scale_short: 1,046 vignettes
+  backbone: >-
+    Fu-LLM: supervised fine-tuning (SFT) of Qwen2-7B on telephone follow-up
+    interview transcripts for clinical outcome adjudication.
+  pretraining: [supervised]
+  pretraining_detail: >-
+    Supervised fine-tuning (SFT) based on Qwen2-7B; ablations compared
+    fine-tuning with and without data augmentation.
+  data:
+    description: >-
+      1,046 vignettes of follow-up telephone interviews conducted across
+      three centers in a randomized clinical trial (China CT-FFR Study 3),
+      used for a secondary in silico human-model comparative analysis.
+    scale:
+      vignettes: 1046
+      centers: 3
+  tasks: [clinical decision support, classification]
+  tasks_detail: >-
+    Automated preadjudication of clinical trial endpoints (death,
+    hospitalization, medication use) from telephone follow-up transcripts,
+    compared against general-purpose LLMs, an SVM baseline, and human
+    adjudicators, including temporal-drift robustness tests across GPT-4
+    versions.
+  modalities: [text]
+  performance:
+    - benchmark: Fu-LLM vs. general-purpose LLMs and SVM (1,046 vignettes)
+      metric: adjudication accuracy
+      value: Fu-LLM outperformed GPT-3.5-turbo, GPT-4o, DeepSeek-v3, Claude 3.5 Sonnet, Gemini-2.0-Pro and SVM
+      note: also outperformed human adjudicators in the in silico comparison
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2025-10
+  title: "LINS: A general medical Q&A framework for enhancing the quality and credibility of LLM-generated responses"
+  url: https://www.nature.com/articles/s41467-025-64142-2
+  doi: 10.1038/s41467-025-64142-2
+  venue: Nat. Commun.
+  authors:
+    first:
+      name: Sheng Wang
+      scholar: null
+    last:
+      name: Yi Zhao
+      scholar: null
+  model:
+    name: LINS
+    repo: null
+  summary:
+    - LINS is a retrieval-augmented medical question-answering framework that continuously gathers up-to-date medical knowledge to generate evidence-traceable LLM responses.
+    - Evaluated against 15,530 objective questions plus two physician-curated clinical test sets, LINS improved evidence validity, medical expertise and timeliness of LLM outputs.
+    - In blinded trials, resident physicians found LINS meaningfully helpful in 87.00% of evidence-based scenarios, and lay users found it helpful in 90.09% of medical-order explanations.
+  summary_short: LINS, a retrieval-augmented medical Q&A framework, improved LLM response credibility, helping resident physicians in 87% of evidence-based scenarios.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 15,530 questions
+  backbone: >-
+    General retrieval-augmented generation (RAG) framework layered on an
+    underlying LLM (specific base model not stated in the accessible text),
+    continuously retrieving up-to-date medical knowledge sources.
+  data:
+    description: >-
+      15,530 objective evaluation questions plus two physician-curated
+      clinical test sets covering evidence-based medical practice and
+      medical order explanation.
+    scale:
+      objective_questions: 15530
+  tasks: [question answering, clinical decision support]
+  tasks_detail: >-
+    Retrieval-augmented medical Q&A generating evidence-traceable responses;
+    blinded evaluation by resident physicians (evidence-based scenarios) and
+    lay users (medical order explanations).
+  modalities: [text]
+  performance:
+    - benchmark: Resident physician blinded evaluation, evidence-based medical scenarios
+      metric: rated meaningfully helpful
+      value: '87.00%'
+      note: null
+    - benchmark: Lay user blinded evaluation, medical order explanations
+      metric: rated helpful
+      value: '90.09%'
+      note: null
+  verify:
+    - >-
+      Filled from the full-text PDF (open access, downloaded directly).
+      LINS's underlying base LLM was not stated in the sections read.
+    - "params_status n/a: LINS is a retrieval/orchestration framework rather than a trained model in its own right."
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2025-09
+  title: A foundation model for human-AI collaboration in medical literature mining
+  url: https://www.nature.com/articles/s41467-025-62058-5
+  doi: 10.1038/s41467-025-62058-5
+  venue: Nat. Commun.
+  authors:
+    first:
+      name: Zifeng Wang
+      scholar: null
+    last:
+      name: Jimeng Sun
+      scholar: null
+  model:
+    name: LEADS
+    repo: null
+  summary:
+    - LEADS is a foundation model trained on 633,759 samples from systematic reviews, clinical trial publications and trial registries, for AI-assisted literature mining.
+    - It consistently improved over four cutting-edge LLMs on six literature-mining tasks including study search, screening and data extraction.
+    - In a 16-user study across 14 institutions, experts using LEADS reached 0.81 recall (vs. 0.78) and 0.85 extraction accuracy (vs. 0.80), saving 21-27% time.
+  summary_short: LEADS, a foundation model trained on 633,759 literature-mining samples, improved recall and extraction accuracy while saving 20-27% of review time.
+  params: null
+  params_status: unchecked
+  dataset_scale_short: 633,759 samples
+  backbone: >-
+    LEADS, an AI foundation model trained specifically for literature-mining
+    tasks (specific base architecture not stated in the accessible text),
+    compared against four cutting-edge general-purpose LLMs.
+  data:
+    description: >-
+      633,759 samples curated from 21,335 systematic reviews, 453,625
+      clinical trial publications and 27,015 clinical trial registries.
+      User study: 16 clinicians/researchers from 14 institutions.
+    scale:
+      training_samples: 633759
+      systematic_reviews: 21335
+      trial_publications: 453625
+      trial_registries: 27015
+      user_study_participants: 16
+  tasks: [question answering, benchmarking, classification]
+  tasks_detail: >-
+    Systematic-review literature mining (study search, screening, data
+    extraction) as a human-AI collaboration tool, evaluated against four
+    frontier LLMs and in a real expert-workflow user study.
+  modalities: [text]
+  performance:
+    - benchmark: Study selection, LEADS-assisted vs. unassisted (16 experts, 14 institutions)
+      metric: recall
+      value: 0.81 vs. 0.78
+      note: 20.8% time savings
+    - benchmark: Data extraction, LEADS-assisted vs. unassisted
+      metric: accuracy
+      value: 0.85 vs. 0.80
+      note: 26.9% time savings
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-02
+  title: A large language model for complex cardiology care
+  url: https://www.nature.com/articles/s41591-025-04190-9
+  doi: 10.1038/s41591-025-04190-9
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Jack W. O'Sullivan
+      scholar: https://scholar.google.ca/citations?hl=zh-TW&user=n5l7tL8AAAAJ
+    last:
+      name: Tao Tu
+      scholar: https://scholar.google.ca/citations?hl=zh-TW&user=VlR6u4AAAAJ&view_op=list_works&sortby=pubdate
+  model:
+    name: AMIE (Articulate Medical Intelligence Explorer)
+    repo: null
+  summary:
+    - Google's AMIE (built on Gemini 2.0 Flash) assisted general cardiologists managing complex suspected-cardiomyopathy cases, judged by 9 subspecialists.
+    - Subspecialists preferred AMIE-assisted assessments 46.7% of the time vs. 32.7% for cardiologists alone, with fewer clinically significant errors and less missing content.
+    - AMIE occasionally hallucinated findings (e.g. fabricating left ventricular hypertrabeculation), but self-corrected when directly challenged by cardiologists.
+  summary_short: AMIE, built on Gemini 2.0 Flash, helped cardiologists outperform unassisted peers on complex cases, though it occasionally hallucinated self-corrected findings.
+  params: null
+  params_status: not published
+  dataset_scale_short: 107 patient cases
+  backbone: >-
+    AMIE, an LLM-based system built upon Gemini 2.0 Flash.
+  data:
+    description: >-
+      Randomized controlled trial on a real-world dataset of complex cases
+      from a subspecialist cardiology practice, with clinical text reports
+      plus raw diagnostic data (ECG, echocardiogram, cardiac MRI,
+      cardiopulmonary exercise testing).
+    scale:
+      patient_cases: 107
+      cardiologists: 9
+  tasks: [triage, diagnosis, treatment response]
+  tasks_detail: >-
+    Nine general cardiologists managed complex suspected-cardiomyopathy cases
+    with or without AMIE assistance; three blinded subspecialists rated
+    triage, diagnosis and management quality on a ten-domain rubric.
+  modalities: [text, ECG, ultrasound, MRI, physiological signals]
+  performance:
+    - benchmark: Subspecialist preference, AMIE-assisted vs. cardiologist-alone assessments
+      metric: preferred response rate
+      value: 46.7% vs. 32.7%
+      note: P = 0.02; remaining 20.6% rated a tie
+    - benchmark: Clinically significant errors
+      metric: error rate
+      value: 13.1% (AMIE-assisted) vs. 24.3% (cardiologist alone)
+      note: P = 0.033
+    - benchmark: Missing content in assessment
+      metric: rate
+      value: 17.8% (AMIE-assisted) vs. 37.4% (cardiologist alone)
+      note: P = 0.0021
+  verify:
+    - >-
+      Backbone confirmed as Gemini 2.0 Flash from the open-access full text
+      (not stated in the abstract alone, and not the earlier table's
+      unverified "Google Medical LLM family" claim -- that was wrong).
+      Pre-training recipe is still not stated anywhere in the paper and is
+      left unfilled rather than guessed.
+    - >-
+      params_status not published: Google does not disclose parameter counts
+      for any Gemini model, including 2.0 Flash; full text confirms no count
+      is stated for the AMIE system itself either.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-02
+  title: "Reliability of LLMs as medical assistants for the general public: a randomized preregistered study"
+  url: https://www.nature.com/articles/s41591-025-04074-y
+  doi: 10.1038/s41591-025-04074-y
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Andrew M. Bean
+      scholar: null
+    last:
+      name: Adam Mahdi
+      scholar: null
+  model:
+    name: LLM medical-assistant human-factors RCT
+    repo: null
+  summary:
+    - In a 1,298-participant RCT, LLMs alone (GPT-4o, Llama 3, Command R+) correctly identified conditions in up to 99% of cases, but participants using those same LLMs did no better than a control group using internet search.
+    - Participants assisted by LLMs identified relevant conditions in under 34.5% of cases and chose the correct disposition in under 44.2%, both underperforming the unassisted control group.
+    - Standard medical benchmarks and simulated patient interactions failed to predict these real human-user failures, arguing for mandatory human user testing before public deployment.
+  summary_short: An RCT found LLMs diagnose accurately alone, but public users of the same LLMs performed no better than unassisted controls.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 1,298 participants
+  backbone: >-
+    Human-factors RCT using three off-the-shelf LLMs (GPT-4o, Llama 3,
+    Command R+) as assistant conditions, compared against an internet-search
+    control. Introduces no new model.
+  pretraining_detail: >-
+    All three LLMs used off-the-shelf via their consumer/API interfaces, not
+    fine-tuned for this study.
+  data:
+    description: >-
+      1,298 UK-based adult participants across 10 medical scenarios (5-point
+      disposition scale plus condition identification), randomized to one of
+      three LLM-assisted arms (GPT-4o, Llama 3, Command R+) or an
+      internet-search control; 600 responses collected per experimental
+      condition.
+    scale:
+      participants: 1298
+      scenarios: 10
+      responses_per_condition: 600
+  tasks: [diagnosis, triage]
+  tasks_detail: >-
+    Participants chose a disposition (5-point scale, staying home to calling
+    an ambulance) and listed suspected conditions for 10 medical scenarios,
+    with or without LLM assistance (GPT-4o, Llama 3, Command R+) versus an
+    internet-search control.
+  modalities: [text]
+  performance:
+    - benchmark: LLM standalone task validation (60 responses/model/scenario), relevant condition identified
+      metric: accuracy
+      value: GPT-4o 94.7%, Llama 3 99.2%, Command R+ 90.8%
+      note: null
+    - benchmark: LLM standalone disposition accuracy
+      metric: accuracy
+      value: GPT-4o 64.7%, Llama 3 48.8%, Command R+ 55.5%
+      note: null
+    - benchmark: Human participants assisted by LLMs vs. control, relevant condition identification
+      metric: odds ratio (control vs. aggregate LLM-assisted)
+      value: control had 1.76x higher odds (95% CI 1.45-2.13)
+      note: P < 0.001 for all three models; LLM-assisted participants identified conditions in under 34.5% of cases
+    - benchmark: Human participants assisted by LLMs vs. control, correct disposition
+      metric: rate
+      value: LLM-assisted under 44.2%, no better than control
+      note: null
+  verify:
+    - Filled from the full-text PDF (open access, downloaded directly).
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-02
+  title: ChatGPT Health performance in a structured test of triage recommendations
+  url: https://doi.org/10.1038/s41591-026-04297-7
+  doi: 10.1038/s41591-026-04297-7
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Ashwin Ramaswamy
+      scholar: https://scholar.google.co.uk/citations?user=p80HpI0AAAAJ&hl=en&oi=ao
+    last:
+      name: Girish N. Nadkarni
+      scholar: null
+  model:
+    name: ChatGPT Health
+    repo: https://github.com/ashwinra-code/gpt-health-eval
+  summary:
+    - A structured stress test of OpenAI's ChatGPT Health (gpt-5-mini backbone) across 60 clinician-authored vignettes found systematic under-triage of emergencies (52%) and over-triage of non-urgent cases.
+    - Anchoring bias was significant, when family/friends minimized symptoms, triage recommendations shifted toward less urgent care (OR 11.7).
+    - Crisis-intervention safeguards for suicidal ideation activated unpredictably, raising safety concerns ahead of consumer-scale deployment.
+  summary_short: A stress test of ChatGPT Health, built on gpt-5-mini, found systematic under-triage of emergencies and anchoring bias from family framing.
+  params: null
+  params_status: not published
+  dataset_scale_short: 960 responses
+  backbone: >-
+    ChatGPT Health web interface, running the gpt-5-mini thinking backbone.
+  data:
+    description: >-
+      60 clinician-authored triage vignettes across 21 clinical domains under
+      16 factorial conditions, yielding 960 total responses.
+    scale:
+      vignettes: 60
+      clinical_domains: 21
+      total_responses: 960
+  tasks: [triage]
+  tasks_detail: >-
+    Structured stress test of triage recommendations; failures concentrated at
+    clinical extremes (nonurgent and emergency presentations), with anchoring
+    bias from family/friends' framing and unpredictable crisis-intervention
+    activation.
+  modalities: [text]
+  performance:
+    - benchmark: Dangerous triage failures by presentation type
+      metric: failure rate
+      value: 35% (nonurgent) / 48% (emergency)
+      note: inverted U-shaped pattern across the severity spectrum
+    - benchmark: Gold-standard emergencies (e.g. DKA, impending respiratory failure)
+      metric: undertriage rate
+      value: 52%
+      note: directed to 24-48h evaluation rather than the emergency department
+    - benchmark: Anchoring bias (family/friends minimizing symptoms)
+      metric: odds ratio for a less-urgent triage shift
+      value: 11.7 (95% CI 3.7-36.6)
+      note: null
+  verify:
+    - >-
+      Backbone (gpt-5-mini thinking) confirmed from the open-access full
+      text's Methods section.
+    - >-
+      params_status not published: OpenAI does not disclose parameter counts
+      for gpt-5-mini; the linked eval repo (github.com/ashwinra-code/
+      gpt-health-eval) was checked and contains only analysis code and data,
+      no model card or parameter count.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-02
+  title: Scaling medical AI across clinical contexts
+  url: https://doi.org/10.1038/s41591-025-04184-7
+  doi: 10.1038/s41591-025-04184-7
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Michelle M. Li
+      scholar: https://scholar.google.co.uk/citations?user=jQ1VLuUAAAAJ&hl=en&oi=ao
+    last:
+      name: Marinka Zitnik
+      scholar: https://scholar.google.co.uk/citations?user=YtUDgPIAAAAJ&hl=en&oi=ao
+  model:
+    name: Context switching (perspective)
+    repo: null
+  summary:
+    - A perspective paper proposes "context switching" -- adjusting a model's reasoning at inference time, without retraining -- as a scalable alternative to fine-tuning or prompting for adapting clinical AI across settings.
+    - Argues today's adaptation strategies (fine-tuning, prompting, retrieval) scale poorly and risk contextual errors when patient or situational information is missing.
+    - Introduces no trained model or experiments; it is a conceptual roadmap for future medical AI system design.
+  summary_short: A perspective paper proposes inference-time context switching, adjusting reasoning without retraining, as a scalable alternative to fine-tuning for clinical AI.
+  params: null
+  params_status: n/a
+  backbone: >-
+    Perspective article proposing "context switching" -- adjusting model
+    reasoning at inference without retraining -- as an alternative to
+    fine-tuning/prompting/retrieval for adapting clinical LLMs, VLMs and
+    multimodal health record models. Introduces no trained model.
+  data:
+    description: >-
+      Conceptual framework; no empirical dataset. Discusses generative,
+      multimodal and agent models switching between notes, labs, imaging and
+      genomics.
+  tasks: [question answering, report generation, planning]
+  tasks_detail: >-
+    Envisions medical AI adapting across specialties, populations and
+    geographies via inference-time context switching rather than retraining,
+    requiring advances in data design, model architecture and evaluation.
+  modalities: [multimodal, text]
+  performance: []
+  verify:
+    - Perspective/vision piece with no experiments; performance intentionally left empty.
+  added: {date: 2026-08, by: Leo Chen}
+
+- date: 2026-01
+  title: "MedHELM: Holistic Evaluation of Large Language Models for Medical Tasks"
+  url: https://www.nature.com/articles/s41591-025-04151-2
+  doi: 10.1038/s41591-025-04151-2
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Suhana Bedi
+      scholar: https://scholar.google.com/citations?user=jiu9TasAAAAJ&hl=en
+    last:
+      name: Nigam H. Shah
+      scholar: https://scholar.google.com/citations?user=n63DmP8AAAAJ&hl=en
+  model:
+    name: MedHELM
+    repo: https://github.com/stanford-crfm/helm
+  summary:
+    - MedHELM introduces a clinician-validated taxonomy of 5 categories / 22 subcategories / 121 real clinical tasks, plus a 37-evaluation benchmark suite for medical LLMs.
+    - Nine frontier LLMs were compared via an automated LLM-jury method; reasoning models DeepSeek R1 and o3-mini led with 66% win rates.
+    - Claude 3.5 Sonnet achieved comparable results at 15% lower computational cost, highlighting a cost/performance tradeoff for real-world deployment.
+  summary_short: A clinician-validated LLM benchmark found DeepSeek R1 and o3-mini leading, with Claude Sonnet close behind at meaningfully lower computational cost.
+  params: null
+  params_status: n/a
+  dataset_scale_short: 121 tasks, 9 models
+  backbone: >-
+    Extensible evaluation framework, not a trained model. Systematically
+    compares nine frontier LLMs (Claude 3.5 Sonnet, Claude 3.7 Sonnet, DeepSeek
+    R1, Gemini 1.5 Pro, Gemini 2.0 Flash, GPT-4o, GPT-4o mini, Llama 3.3,
+    o3-mini) using an automated LLM-jury method.
+  data:
+    description: >-
+      Clinician-validated taxonomy of 5 categories / 22 subcategories / 121
+      tasks mirroring real clinical practice, with a 37-evaluation benchmark
+      suite covering every subcategory.
+    scale:
+      categories: 5
+      subcategories: 22
+      tasks: 121
+      evaluations: 37
+      models_evaluated: 9
+  tasks: [clinical decision support, clinical note generation, patient communication, medical research assistance, administration, benchmarking]
+  tasks_detail: >-
+    Five categories mirroring real clinical tasks: clinical decision support
+    (diagnostic decisions, treatment planning), clinical note generation
+    (visit documentation, procedure reports), patient communication (education
+    materials, care instructions), medical research (literature analysis,
+    clinical data analysis) and administration (scheduling, workflow
+    coordination).
+  modalities: [text]
+  performance:
+    - benchmark: LLM-jury evaluation across 37 evaluations, 9 frontier LLMs
+      metric: win rate
+      value: 66% (DeepSeek R1, o3-mini)
+      note: Claude 3.5 Sonnet achieved comparable results at 15% lower computational cost
+  verify:
+    - Filled from the Europe PMC abstract only; full text not fetched this pass.
+  added: {date: 2026-08, by: Leo Chen}
