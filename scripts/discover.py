@@ -182,19 +182,45 @@ def build_pubmed_query(
     return f"(({journal_clause}) AND ({ai_clause})) AND {window} NOT ({excluded})"
 
 
-def fetch_pubmed(
-    vocab: Vocab, since: date, until: date, limit: int = 200, broad: bool = False
-) -> list[Candidate]:
+def fetch_pubmed(vocab: Vocab, since: date, until: date, broad: bool = False) -> list[Candidate]:
+    """All matching PubMed IDs in the window, paginated -- not just the first page.
+
+    A single-shot `esearch` with a fixed `retmax` silently truncates once a
+    window's true hit count exceeds it: a `--days 365` scan across the journal
+    allowlist matches ~1,500 articles, so a `retmax=200` cap dropped roughly
+    seven-eighths of the window with no warning that anything was missing.
+    Paging through `retstart` until `count` is exhausted is the fix; the
+    per-request page size (500) is unrelated to how many results exist.
+    """
     query = build_pubmed_query(vocab, since, until, broad)
-    payload = json.loads(
-        get(
-            f"{EUTILS}/esearch.fcgi",
-            {"db": "pubmed", "term": query, "retmax": limit, "retmode": "json"},
+    ids: list[str] = []
+    retstart = 0
+    while True:
+        payload = json.loads(
+            get(
+                f"{EUTILS}/esearch.fcgi",
+                {
+                    "db": "pubmed",
+                    "term": query,
+                    "retmax": 500,
+                    "retstart": retstart,
+                    "retmode": "json",
+                },
+            )
         )
-    )
-    ids = payload.get("esearchresult", {}).get("idlist", [])
+        result = payload.get("esearchresult", {})
+        chunk = result.get("idlist", [])
+        if not chunk:
+            break
+        ids.extend(chunk)
+        retstart += len(chunk)
+        total = int(result.get("count", 0) or 0)
+        if retstart >= total:
+            break
+        time.sleep(0.4)
     if not ids:
         return []
+    print(f"  pubmed: {len(ids)} matching id(s) in window", file=sys.stderr)
 
     out: list[Candidate] = []
     for chunk_start in range(0, len(ids), 100):
