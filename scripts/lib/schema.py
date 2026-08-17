@@ -152,6 +152,52 @@ KNOWN_FIELDS = set(REQUIRED) | set(EXPECTED) | {
     "params_scope",
     "params_status",
     "training_slides",
+    # dataset_scale_short is training_slides' counterpart for a `scan_table:
+    # paper` page (see domains.yaml): the headline cohort/dataset size, in
+    # whatever unit that entry actually reports (images, patients,
+    # conversations) -- `data.scale` mixes units across entries the same way
+    # it does for training_slides, so this is written by hand too.
+    "dataset_scale_short",
+    # A short list (2-3 items) of plain-language takeaways, shown first in the
+    # detail block on a `scan_table: paper` page. Optional everywhere else.
+    "summary",
+    # One hand-written sentence condensing `summary` for the scan table's
+    # "Summary" column on a `scan_table: paper` page -- written by hand for
+    # the same reason as pretraining_short/dataset_scale_short: three bullets
+    # do not compress into one good sentence automatically.
+    "summary_short",
+    # The specific LLM(s) a study used, for the "LLMs" column on a
+    # `scan_table: paper` page. A list of display strings, grouped by family
+    # with version tokens as they appear in the real model names -- e.g.
+    # ["GPT (4o, 5)", "Claude Sonnet (3.7, 4.5)", "Gemini 2.5 (Flash, Pro)"].
+    # Single-model entries use the plain name ("GPT-4V", "Gemini 2.5 Flash").
+    # Hand-written, same reason as summary_short: the model list is not
+    # derivable from `backbone` without guessing.
+    "llms",
+    # A hand-written descriptive phrase for the "Tasks" column on a
+    # `scan_table: paper` page -- more informative than the bare vocabulary
+    # terms, shorter than `tasks_detail`.
+    "tasks_short",
+    # A hand-written headline-result sentence for the "Conclusion" column on
+    # a `scan_table: paper` page -- the so-what of the study, distinct from
+    # `summary_short` (what the study did).
+    "conclusion",
+    # Open-source code / dataset URLs for the "Links" column on a
+    # `scan_table: paper` page. Null means not released; the renderer prints
+    # "(code not released)" / "(data not released)" for those. Hand-written:
+    # the links are per-paper facts that cannot be derived from other fields.
+    "code_url",
+    "data_url",
+    # Optional display labels for the Code/Data links on a `scan_table:
+    # paper` page. When present, the link text uses the label instead of
+    # the default "Code"/"Data" (e.g. "16/37 public datasets" linking to
+    # the paper's Data Availability section).
+    "code_label",
+    "data_label",
+    # Marks a paper that has no code or data artifacts at all (a review,
+    # perspective, guideline or commentary) so the Links column renders a
+    # single "N/A" instead of two "(not released)" placeholders.
+    "resources",
 }
 
 # `params: null` is a claim in its own right, so it has to say which claim.
@@ -323,12 +369,24 @@ def validate_entry(entry: dict, where: str, vocab: Vocab) -> list[Issue]:
             Issue("error", where, "params_scope describes a count that is not there")
         )
 
-    # These three are prose for the scan table, so the only machine-checkable
-    # thing about them is that they stay short enough to sit in a cell.
+    # These are prose for the scan table, so the only machine-checkable thing
+    # about them is that they stay short enough to sit in a cell.
+    summary_short = entry.get("summary_short")
+    if summary_short is not None:
+        if not isinstance(summary_short, str):
+            issues.append(Issue("error", where, "summary_short must be a string"))
+        else:
+            words = len(summary_short.split())
+            if not 12 <= words <= 22:
+                issues.append(
+                    Issue("warn", where, f"summary_short is {words} words; aim for 15-20")
+                )
+
     for name, limit in (
         ("pretraining_short", 44),
         ("params_scope", 24),
         ("training_slides", 28),
+        ("dataset_scale_short", 28),
     ):
         value = entry.get(name)
         if value is None:
@@ -410,6 +468,15 @@ def validate_entry(entry: dict, where: str, vocab: Vocab) -> list[Issue]:
     nlm = entry.get("notebooklm")
     if nlm and not URL_RE.match(str(nlm)):
         issues.append(Issue("error", where, f"notebooklm {nlm!r} is not a URL"))
+
+    summary = entry.get("summary")
+    if summary is not None:
+        if not isinstance(summary, list) or not all(isinstance(s, str) for s in summary):
+            issues.append(Issue("error", where, "summary must be a list of strings"))
+        elif not 1 <= len(summary) <= 4:
+            issues.append(
+                Issue("warn", where, f"summary has {len(summary)} points; 2-3 reads best")
+            )
 
     return issues
 

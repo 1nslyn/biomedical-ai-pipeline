@@ -67,7 +67,10 @@ Expected (a warning if missing): `doi`, `authors`, `backbone`, `data`, `tasks`,
 | `pretraining` | List, from the `pretraining` vocabulary. |
 | `pretraining_short` | The named recipe for the scan table: `DINOv2`, `iBOT → CoCa`. |
 | `data.scale` | Integers, with keys naming what was counted. |
-| `training_slides` | Whole slides trained on, for the scan table: `1.5M`, `none (208K image–text)`. |
+| `training_slides` | Whole slides trained on, for the scan table: `1.5M`, `none (208K image–text)`. Pathology-style pages only. |
+| `dataset_scale_short` | The `training_slides` counterpart for a `scan_table: paper` page (see below): headline cohort/dataset size, e.g. `9,691 patients`, `810 conversations`. |
+| `summary` | 2-3 plain-language takeaways, as a YAML list. Shown first in the detail block on a `scan_table: paper` page; ignored elsewhere. |
+| `summary_short` | One sentence, 15-20 words, condensing `summary` for a `scan_table: paper` page's "Summary" scan-table column. Write it by hand; do not auto-truncate the bullets. |
 | `tasks` | List, from the `tasks` vocabulary. |
 | `performance` | `[{benchmark, metric, value, note}]`. |
 | `verify` | Free-text list of things you could not confirm. Not rendered on the page; `validate.py --report` lists every entry carrying one. |
@@ -127,6 +130,18 @@ Two parts, both generated:
   tasks — with the model name linking into its record;
 - one collapsed record per model, holding the paper, authors, architecture,
   data, tasks and reported performance.
+
+A page can set `scan_table: paper` in `data/domains.yaml` instead (LLM.md
+does). Use it when many entries are not a named model at all — a benchmark, an
+RCT, a perspective piece — so linking the scan table by paper title reads
+better than an invented model name. It swaps "Venue" for "Journal", drops
+"Model size" entirely (pointless on a page where it is `n/a`/`not published`
+start to finish) in favour of a "Summary" column (`summary_short`), and
+"Training slides" for "Datasets" (`dataset_scale_short`). It also leads the
+detail block with `summary` before Models/Downstream tasks/Modalities, ahead
+of pre-training and data. This is a per-page opt-in: a page that has not set
+it renders exactly as
+before.
 
 The scan table answers "which model do I want?" in one screen; the record
 answers everything else without making anyone scroll past it. Change the layout

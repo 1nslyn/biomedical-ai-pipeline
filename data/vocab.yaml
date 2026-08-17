@@ -152,6 +152,14 @@ tasks:
   - reasoning
   - planning
   - benchmarking
+  - triage
+  - information extraction
+  - billing coding
+  - clinical decision support
+  - clinical note generation
+  - patient communication
+  - medical research assistance
+  - administration
 
 # ---------------------------------------------------------------------------
 # Imaging / data modalities.
@@ -167,6 +175,7 @@ modalities:
   - OCT
   - fundus
   - dermoscopy
+  - clinical photography
   - endoscopy
   - microscopy
   - EHR

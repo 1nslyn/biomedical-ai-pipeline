@@ -102,11 +102,21 @@
 - slug: LLM
   name: Large Language Models
   file: LLM.md
-  scope: Benchmarks of LLMs, medical language models and clinical NLP
+  scope: >-
+    High-impact research on medical large language models (LLMs):
+    clinical LLM systems, benchmarks, and randomized trials
   maintainers:
-    - {name: Leo Chen, github: null, homepage: null, linkedin: null, scholar: null, twitter: null}
-  pdf_repo: null
+    - {name: Leo Chen, github: leochenmd, homepage: null, linkedin: null, scholar: null, twitter: null}
+  pdf_repo: https://github.com/leochenmd/llm-papers-pdfs
   notebooklm: null
+  # Most LLM.md entries are not a named model at all -- a benchmark, an RCT,
+  # a perspective piece -- so the scan table links by paper title instead of
+  # model name ("Paper" not "Model"), labels the venue column "Journal", and
+  # replaces "Training slides" (a pathology-specific concept) with
+  # "Datasets" (dataset_scale_short per entry). The detail dropdown also
+  # leads with a Summary field and reprioritises tasks/modalities above
+  # pre-training/data. See scripts/build.py's render_index_table/render_detail.
+  scan_table: paper
 
 - slug: AI4Science
   name: AI for Science

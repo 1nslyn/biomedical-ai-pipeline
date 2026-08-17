@@ -149,14 +149,17 @@ def term_cell(terms: list[str] | None, limit: int = 3) -> str:
     return f"{shown} +{extra}" if extra > 0 else shown
 
 
-def date_cell(entry: dict) -> str:
-    """`2026-07` as `2026.07`.
+def date_cell(entry: dict, paper_mode: bool = False) -> str:
+    """`2026-07` as `2026.07`, or as `202607` on a `scan_table: paper` page.
 
-    The hyphen is a break opportunity, so a narrow first column renders it as
-    "2026-" over "07". A dot is not, so the cell always stays on one line.
+    The default dot form keeps a narrow first column on one line (a hyphen is
+    a break opportunity and would render as "2026-" over "07"). The paper
+    layout instead uses the bare YYYYMM to match the `Date (YYYYMM)` header.
     """
     date = str(entry.get("date") or "").strip()
-    return date.replace("-", ".") if date else "—"
+    if not date:
+        return "—"
+    return date.replace("-", "") if paper_mode else date.replace("-", ".")
 
 
 def params_cell(entry: dict) -> str:
@@ -187,6 +190,18 @@ def training_slides_cell(entry: dict) -> str:
     return escape_cell(entry.get("training_slides") or "—")
 
 
+def dataset_scale_cell(entry: dict) -> str:
+    """The headline dataset/cohort size, for pages where "training slides"
+    (a pathology-specific concept) does not apply.
+
+    Hand-written per entry, same reasoning as `training_slides_cell`: `data.scale`
+    counts different things in different records (images, patients, conversations,
+    tasks), so there is no single key to pull automatically without sometimes
+    printing the wrong number.
+    """
+    return escape_cell(entry.get("dataset_scale_short") or "—")
+
+
 def pretraining_cell(entry: dict) -> str:
     """The named recipe, falling back to the controlled-vocabulary terms.
 
@@ -201,37 +216,112 @@ def pretraining_cell(entry: dict) -> str:
     return escape_cell(term_cell(entry.get("pretraining")))
 
 
-def render_index_table(entries: list[dict]) -> list[str]:
-    """The scan table: one row per model, linking into its detail block.
+def render_index_table(entries: list[dict], domain: dict) -> list[str]:
+    """The scan table: one row per entry, linking into its detail block.
 
-    Columns are the five the team agreed on -- model, model size, data size,
-    pre-training and downstream tasks -- plus date and venue to sort by. The
-    paper title, authors, code and benchmark numbers live in the detail block,
-    which is one click away on the model name.
+    Default columns are the five the team agreed on -- model, model size,
+    data size, pre-training and downstream tasks -- plus date and venue to
+    sort by. The paper title, authors, code and benchmark numbers live in the
+    detail block, which is one click away on the model name.
+
+    A page can opt into `scan_table: paper` in domains.yaml instead (LLM.md
+    does): several entries here are not a named model at all -- a benchmark,
+    an RCT, a perspective piece -- so the table is organized around the paper
+    rather than an invented model name. The columns are: date (YYYYMM), the
+    paper title (hyperlinked to the article), journal, a one-line Summary
+    (`summary_short`), the specific LLMs the study used or evaluated
+    (`llms`), the Datasets scale (`dataset_scale_short`), a descriptive
+    Tasks phrase (`tasks_short`), a headline Conclusion (`conclusion`), and
+    a Links cell holding the paper's Code and Data locations (`code_url` /
+    `data_url`, or the paper's availability subsections; `(code/data not
+    released)` when closed, `(data on request)` for request-gated data, and
+    `N/A` for reviews/perspectives/guidelines with no artifacts). The detail
+    blocks below the table are skipped for paper-mode pages -- everything a
+    reader needs is in the table itself.
+    This only changes the page(s) that opt in; every other page's table is
+    byte-identical to before.
     """
-    lines = [
-        "| Date | Model | Venue | Model size | Training slides | Pre-training | Downstream tasks |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
-    ]
+    paper_mode = domain.get("scan_table") == "paper"
+    show_notebooklm = bool(domain.get("pdf_repo")) or any(
+        entry.get("notebooklm") for entry in entries
+    )
+
+    if paper_mode:
+        header = "| Date<br>(YYYYMM) | Paper | Journal | Summary | LLMs | Datasets | Tasks | Conclusion | Links |"
+    else:
+        header = "| Date | Model | Venue | Model size | Training slides | Pre-training | Downstream tasks |"
+    sep = "| --- | --- | --- | --- | --- | --- | --- | --- | --- |" if paper_mode else "| --- | --- | --- | --- | --- | --- | --- |"
+    if show_notebooklm and not paper_mode:
+        header += " NotebookLM |"
+        sep += " --- |"
+    lines = [header, sep]
+
     for entry in entries:
         model = entry.get("model") or {}
-        lines.append(
-            "| {date} | [{name}](#{anchor}) | {venue} | {params} | {slides} "
-            "| {pretraining} | {tasks} |".format(
-                date=date_cell(entry),
-                name=escape_cell(model.get("name", "—")),
-                anchor=anchor_id(entry),
-                venue=escape_cell(entry.get("venue", "—")),
-                params=params_cell(entry),
-                slides=training_slides_cell(entry),
-                pretraining=pretraining_cell(entry),
-                tasks=escape_cell(term_cell(entry.get("tasks"))),
+        link_text = entry.get("title", "—") if paper_mode else model.get("name", "—")
+        third_col = escape_cell(entry.get("summary_short") or "—") if paper_mode else params_cell(entry)
+        size_col = dataset_scale_cell(entry) if paper_mode else training_slides_cell(entry)
+        if paper_mode:
+            llms = entry.get("llms") or []
+            llms_cell = "<br>".join(escape_cell(str(x)) for x in llms) if llms else "—"
+            code_url = entry.get("code_url")
+            data_url = entry.get("data_url")
+            if entry.get("resources") == "n/a":
+                sources_cell = "N/A"
+            else:
+                code_label = entry.get("code_label") or "Code"
+                data_label = entry.get("data_label") or "Data"
+                parts = []
+                if code_url:
+                    parts.append(link(code_url, code_label))
+                if data_url:
+                    parts.append(link(data_url, data_label))
+                if not code_url:
+                    parts.append("(code not released)")
+                if not data_url:
+                    parts.append("(data not released)")
+                sources_cell = "<br>".join(parts)
+            row = (
+                "| {date} | [{name}]({url}) | {venue} | {third} | {llms} | {slides} "
+                "| {tasks_short} | {conclusion} | {sources} |".format(
+                    date=date_cell(entry, paper_mode=True),
+                    name=escape_cell(link_text),
+                    url=safe_url(entry.get("url") or ""),
+                    venue=escape_cell(entry.get("venue", "—")),
+                    third=third_col,
+                    llms=llms_cell,
+                    slides=size_col,
+                    tasks_short=escape_cell(entry.get("tasks_short") or "—"),
+                    conclusion=escape_cell(entry.get("conclusion") or "—"),
+                    sources=sources_cell,
+                )
             )
-        )
+        else:
+            row = (
+                "| {date} | [{name}](#{anchor}) | {venue} | {third} | {slides} "
+                "| {pretraining} | {tasks} |".format(
+                    date=date_cell(entry),
+                    name=escape_cell(link_text),
+                    anchor=anchor_id(entry),
+                    venue=escape_cell(entry.get("venue", "—")),
+                    third=third_col,
+                    slides=size_col,
+                    pretraining=pretraining_cell(entry),
+                    tasks=escape_cell(term_cell(entry.get("tasks"))),
+                )
+            )
+        if show_notebooklm and not paper_mode:
+            notebooklm = entry.get("notebooklm")
+            cell = link(notebooklm, "open") if notebooklm else "—"
+            row += f" {cell} |"
+        lines.append(row)
     return lines
 
 
 # Only printed when the table above actually uses the convention it explains.
+# `scan_table: paper` pages have no "Model size" column, so `needs_legend`
+# there only fires on `training_slides` (which they also do not use) --
+# it never actually shows for them. Kept for the default/pathology-style table.
 TABLE_LEGEND = (
     "<sub><b>Model size</b> is the count the authors publish, with the component "
     "it covers in brackets — a slide encoder and a tile encoder are not "
@@ -272,10 +362,11 @@ def group_entries(domain: dict, entries: list[dict]) -> list[tuple[str | None, l
     return out
 
 
-def render_detail(entry: dict, vocab: Vocab) -> list[str]:
+def render_detail(entry: dict, vocab: Vocab, domain: dict) -> list[str]:
     model = entry.get("model") or {}
     authors = entry.get("authors") or {}
     out: list[str] = []
+    paper_mode = domain.get("scan_table") == "paper"
 
     name = model.get("name", entry.get("title", "Untitled"))
 
@@ -300,13 +391,18 @@ def render_detail(entry: dict, vocab: Vocab) -> list[str]:
     out.append(" · ".join(byline))
     out.append("")
 
-    rows: list[tuple[str, str]] = []
+    # Every possible row, computed once and keyed by field -- the two modes
+    # below only choose which keys appear and in what order, so they can never
+    # disagree on how a value is formatted.
+    fields: dict[str, tuple[str, str]] = {}
+    if entry.get("summary"):
+        fields["summary"] = ("Summary", "<br>".join(f"• {point}" for point in entry["summary"]))
     if entry.get("params"):
-        rows.append(("Parameters", entry["params"]))
+        fields["params"] = ("Parameters", entry["params"])
     if model.get("params_note"):
-        rows.append(("Parameter note", model["params_note"]))
+        fields["params_note"] = ("Parameter note", model["params_note"])
     if entry.get("backbone"):
-        rows.append(("Backbone", entry["backbone"]))
+        fields["backbone"] = ("Models" if paper_mode else "Backbone", entry["backbone"])
 
     pretraining = entry.get("pretraining") or []
     detail = entry.get("pretraining_detail")
@@ -314,7 +410,7 @@ def render_detail(entry: dict, vocab: Vocab) -> list[str]:
         value = ", ".join(f"`{p}`" for p in pretraining)
         if detail:
             value = f"{value}<br>{detail}" if value else detail
-        rows.append(("Pre-training", value))
+        fields["pretraining"] = ("Pre-training", value)
 
     data = entry.get("data") or {}
     if data:
@@ -328,7 +424,7 @@ def render_detail(entry: dict, vocab: Vocab) -> list[str]:
                 for k, v in scale.items()
             )
             value = f"{value}<br>{chips}" if value else chips
-        rows.append(("Training data", value))
+        fields["data"] = ("Data" if paper_mode else "Training data", value)
 
     tasks = entry.get("tasks") or []
     tasks_detail = entry.get("tasks_detail")
@@ -336,20 +432,37 @@ def render_detail(entry: dict, vocab: Vocab) -> list[str]:
         value = ", ".join(f"`{t}`" for t in tasks)
         if tasks_detail:
             value = f"{value}<br>{tasks_detail}" if value else tasks_detail
-        rows.append(("Downstream tasks", value))
+        fields["tasks"] = ("Downstream tasks", value)
 
     if entry.get("modalities"):
-        rows.append(("Modalities", ", ".join(f"`{m}`" for m in entry["modalities"])))
+        fields["modalities"] = ("Modalities", ", ".join(f"`{m}`" for m in entry["modalities"]))
     if model.get("repo"):
-        rows.append(("Code", link(model["repo"])))
+        fields["code"] = ("Code", link(model["repo"]))
     if model.get("weights"):
-        rows.append(("Weights", link(model["weights"])))
+        fields["weights"] = ("Weights", link(model["weights"]))
     if model.get("license"):
-        rows.append(("License", model["license"]))
+        fields["license"] = ("License", model["license"])
     if entry.get("notebooklm"):
-        rows.append(("NotebookLM", link(entry["notebooklm"], "open notebook")))
+        fields["notebooklm"] = ("NotebookLM", link(entry["notebooklm"], "open notebook"))
     if entry.get("note"):
-        rows.append(("Note", entry["note"]))
+        fields["note"] = ("Note", entry["note"])
+
+    # `paper_mode` leads with Summary/Models/Downstream tasks/Modalities --
+    # what a reader wants first when the entry may not be a named model at
+    # all. The default order is untouched, so a page that has not opted in
+    # (pathology.md included) renders byte-identical to before.
+    order = (
+        [
+            "summary", "backbone", "params", "params_note", "tasks", "modalities",
+            "pretraining", "data", "code", "weights", "license", "notebooklm", "note",
+        ]
+        if paper_mode
+        else [
+            "params", "params_note", "backbone", "pretraining", "data", "tasks",
+            "modalities", "code", "weights", "license", "notebooklm", "note",
+        ]
+    )
+    rows = [fields[key] for key in order if key in fields]
 
     out.append("| | |")
     out.append("| --- | --- |")
@@ -389,12 +502,18 @@ def render_domain_page(domain: dict, entries: list[dict], vocab: Vocab) -> str:
     out.append(f"**Maintainer:** {maintainer_line(domain.get('maintainers'))}")
     out.append("")
 
+    # A `scan_table: paper` page skips the "Paper PDFs" and "Back to index"
+    # links: the PDF repo is typically private (a dead link for anyone but the
+    # maintainer), and the per-row NotebookLM column already carries the
+    # per-paper navigation this layout is built around.
+    paper_mode = domain.get("scan_table") == "paper"
     summary = [f"**{len(entries)} entries**"]
-    if domain.get("pdf_repo"):
+    if domain.get("pdf_repo") and not paper_mode:
         summary.append(f"[Paper PDFs]({domain['pdf_repo']})")
     if domain.get("notebooklm"):
         summary.append(f"[NotebookLM]({domain['notebooklm']})")
-    summary.append("[Back to index](README.md)")
+    if not paper_mode:
+        summary.append("[Back to index](README.md)")
     out.append(" · ".join(summary))
     out.append("")
 
@@ -406,19 +525,22 @@ def render_domain_page(domain: dict, entries: list[dict], vocab: Vocab) -> str:
         if group_name:
             out.append(f"## {group_name}")
             out.append("")
-        out.extend(render_index_table(rows))
+        out.extend(render_index_table(rows, domain))
         out.append("")
 
-    if needs_legend(entries):
+    # `scan_table: paper` pages have no "Model size" or "Training slides"
+    # column, so the legend explaining them would have nothing to point at.
+    if not paper_mode and needs_legend(entries):
         out.append(TABLE_LEGEND)
         out.append("")
 
-    out.append("## Details")
-    out.append("")
-    out.append("Click a model to expand its record.")
-    out.append("")
-    for entry in entries:
-        out.extend(render_detail(entry, vocab))
+    if not paper_mode:
+        out.append("## Details")
+        out.append("")
+        out.append("Click a model to expand its record.")
+        out.append("")
+        for entry in entries:
+            out.extend(render_detail(entry, vocab, domain))
 
     out.append("---")
     out.append("")
