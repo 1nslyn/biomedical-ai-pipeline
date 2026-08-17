@@ -149,14 +149,17 @@ def term_cell(terms: list[str] | None, limit: int = 3) -> str:
     return f"{shown} +{extra}" if extra > 0 else shown
 
 
-def date_cell(entry: dict) -> str:
-    """`2026-07` as `2026.07`.
+def date_cell(entry: dict, paper_mode: bool = False) -> str:
+    """`2026-07` as `2026.07`, or as `202607` on a `scan_table: paper` page.
 
-    The hyphen is a break opportunity, so a narrow first column renders it as
-    "2026-" over "07". A dot is not, so the cell always stays on one line.
+    The default dot form keeps a narrow first column on one line (a hyphen is
+    a break opportunity and would render as "2026-" over "07"). The paper
+    layout instead uses the bare YYYYMM to match the `Date (YYYYMM)` header.
     """
     date = str(entry.get("date") or "").strip()
-    return date.replace("-", ".") if date else "—"
+    if not date:
+        return "—"
+    return date.replace("-", "") if paper_mode else date.replace("-", ".")
 
 
 def params_cell(entry: dict) -> str:
@@ -223,20 +226,20 @@ def render_index_table(entries: list[dict], domain: dict) -> list[str]:
 
     A page can opt into `scan_table: paper` in domains.yaml instead (LLM.md
     does): several entries here are not a named model at all -- a benchmark,
-    an RCT, a perspective piece -- so linking by paper title reads better than
-    linking by an invented model name, "Venue" becomes "Journal", "Training
-    slides" (a pathology-specific concept: whole slides trained on) becomes
-    "Datasets", and "Model size" is dropped entirely -- on a page where most
-    entries introduce no model, that column is `n/a`/`not published` start to
-    finish, which tells a reader nothing. In its place, "Summary" gives a
-    one-line takeaway (`summary_short`), hand-written to condense that entry's
-    `summary` bullets in the detail block below rather than duplicating them.
+    an RCT, a perspective piece -- so the table is organized around the paper
+    rather than an invented model name. The columns are: date (YYYYMM), the
+    paper title (hyperlinked to the article), journal, a one-line Summary
+    (`summary_short`), the specific LLMs the study used or evaluated
+    (`llms`), the Datasets scale (`dataset_scale_short`), a descriptive
+    Tasks phrase (`tasks_short`), a headline Conclusion (`conclusion`), and
+    a Links cell holding the paper's Code and Data locations (`code_url` /
+    `data_url`, or the paper's availability subsections; `(code/data not
+    released)` when closed, `(data on request)` for request-gated data, and
+    `N/A` for reviews/perspectives/guidelines with no artifacts). The detail
+    blocks below the table are skipped for paper-mode pages -- everything a
+    reader needs is in the table itself.
     This only changes the page(s) that opt in; every other page's table is
     byte-identical to before.
-
-    A NotebookLM column is appended when the domain has its own `pdf_repo`
-    (signalling it collects per-paper notebooks) or when at least one entry
-    already carries a `notebooklm` link.
     """
     paper_mode = domain.get("scan_table") == "paper"
     show_notebooklm = bool(domain.get("pdf_repo")) or any(
@@ -244,11 +247,11 @@ def render_index_table(entries: list[dict], domain: dict) -> list[str]:
     )
 
     if paper_mode:
-        header = "| Date | Paper | Journal | Summary | Datasets/Models | Pre-training | Downstream tasks |"
+        header = "| Date<br>(YYYYMM) | Paper | Journal | Summary | LLMs | Datasets | Tasks | Conclusion | Links |"
     else:
         header = "| Date | Model | Venue | Model size | Training slides | Pre-training | Downstream tasks |"
-    sep = "| --- | --- | --- | --- | --- | --- | --- |"
-    if show_notebooklm:
+    sep = "| --- | --- | --- | --- | --- | --- | --- | --- | --- |" if paper_mode else "| --- | --- | --- | --- | --- | --- | --- |"
+    if show_notebooklm and not paper_mode:
         header += " NotebookLM |"
         sep += " --- |"
     lines = [header, sep]
@@ -258,20 +261,56 @@ def render_index_table(entries: list[dict], domain: dict) -> list[str]:
         link_text = entry.get("title", "—") if paper_mode else model.get("name", "—")
         third_col = escape_cell(entry.get("summary_short") or "—") if paper_mode else params_cell(entry)
         size_col = dataset_scale_cell(entry) if paper_mode else training_slides_cell(entry)
-        row = (
-            "| {date} | [{name}](#{anchor}) | {venue} | {third} | {slides} "
-            "| {pretraining} | {tasks} |".format(
-                date=date_cell(entry),
-                name=escape_cell(link_text),
-                anchor=anchor_id(entry),
-                venue=escape_cell(entry.get("venue", "—")),
-                third=third_col,
-                slides=size_col,
-                pretraining=pretraining_cell(entry),
-                tasks=escape_cell(term_cell(entry.get("tasks"))),
+        if paper_mode:
+            llms = entry.get("llms") or []
+            llms_cell = "<br>".join(escape_cell(str(x)) for x in llms) if llms else "—"
+            code_url = entry.get("code_url")
+            data_url = entry.get("data_url")
+            if entry.get("resources") == "n/a":
+                sources_cell = "N/A"
+            else:
+                code_label = entry.get("code_label") or "Code"
+                data_label = entry.get("data_label") or "Data"
+                parts = []
+                if code_url:
+                    parts.append(link(code_url, code_label))
+                if data_url:
+                    parts.append(link(data_url, data_label))
+                if not code_url:
+                    parts.append("(code not released)")
+                if not data_url:
+                    parts.append("(data not released)")
+                sources_cell = "<br>".join(parts)
+            row = (
+                "| {date} | [{name}]({url}) | {venue} | {third} | {llms} | {slides} "
+                "| {tasks_short} | {conclusion} | {sources} |".format(
+                    date=date_cell(entry, paper_mode=True),
+                    name=escape_cell(link_text),
+                    url=safe_url(entry.get("url") or ""),
+                    venue=escape_cell(entry.get("venue", "—")),
+                    third=third_col,
+                    llms=llms_cell,
+                    slides=size_col,
+                    tasks_short=escape_cell(entry.get("tasks_short") or "—"),
+                    conclusion=escape_cell(entry.get("conclusion") or "—"),
+                    sources=sources_cell,
+                )
             )
-        )
-        if show_notebooklm:
+        else:
+            row = (
+                "| {date} | [{name}](#{anchor}) | {venue} | {third} | {slides} "
+                "| {pretraining} | {tasks} |".format(
+                    date=date_cell(entry),
+                    name=escape_cell(link_text),
+                    anchor=anchor_id(entry),
+                    venue=escape_cell(entry.get("venue", "—")),
+                    third=third_col,
+                    slides=size_col,
+                    pretraining=pretraining_cell(entry),
+                    tasks=escape_cell(term_cell(entry.get("tasks"))),
+                )
+            )
+        if show_notebooklm and not paper_mode:
             notebooklm = entry.get("notebooklm")
             cell = link(notebooklm, "open") if notebooklm else "—"
             row += f" {cell} |"
@@ -495,12 +534,13 @@ def render_domain_page(domain: dict, entries: list[dict], vocab: Vocab) -> str:
         out.append(TABLE_LEGEND)
         out.append("")
 
-    out.append("## Details")
-    out.append("")
-    out.append("Click a model to expand its record.")
-    out.append("")
-    for entry in entries:
-        out.extend(render_detail(entry, vocab, domain))
+    if not paper_mode:
+        out.append("## Details")
+        out.append("")
+        out.append("Click a model to expand its record.")
+        out.append("")
+        for entry in entries:
+            out.extend(render_detail(entry, vocab, domain))
 
     out.append("---")
     out.append("")

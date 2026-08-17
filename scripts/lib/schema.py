@@ -166,6 +166,38 @@ KNOWN_FIELDS = set(REQUIRED) | set(EXPECTED) | {
     # the same reason as pretraining_short/dataset_scale_short: three bullets
     # do not compress into one good sentence automatically.
     "summary_short",
+    # The specific LLM(s) a study used, for the "LLMs" column on a
+    # `scan_table: paper` page. A list of display strings, grouped by family
+    # with version tokens as they appear in the real model names -- e.g.
+    # ["GPT (4o, 5)", "Claude Sonnet (3.7, 4.5)", "Gemini 2.5 (Flash, Pro)"].
+    # Single-model entries use the plain name ("GPT-4V", "Gemini 2.5 Flash").
+    # Hand-written, same reason as summary_short: the model list is not
+    # derivable from `backbone` without guessing.
+    "llms",
+    # A hand-written descriptive phrase for the "Tasks" column on a
+    # `scan_table: paper` page -- more informative than the bare vocabulary
+    # terms, shorter than `tasks_detail`.
+    "tasks_short",
+    # A hand-written headline-result sentence for the "Conclusion" column on
+    # a `scan_table: paper` page -- the so-what of the study, distinct from
+    # `summary_short` (what the study did).
+    "conclusion",
+    # Open-source code / dataset URLs for the "Links" column on a
+    # `scan_table: paper` page. Null means not released; the renderer prints
+    # "(code not released)" / "(data not released)" for those. Hand-written:
+    # the links are per-paper facts that cannot be derived from other fields.
+    "code_url",
+    "data_url",
+    # Optional display labels for the Code/Data links on a `scan_table:
+    # paper` page. When present, the link text uses the label instead of
+    # the default "Code"/"Data" (e.g. "16/37 public datasets" linking to
+    # the paper's Data Availability section).
+    "code_label",
+    "data_label",
+    # Marks a paper that has no code or data artifacts at all (a review,
+    # perspective, guideline or commentary) so the Links column renders a
+    # single "N/A" instead of two "(not released)" placeholders.
+    "resources",
 }
 
 # `params: null` is a claim in its own right, so it has to say which claim.
