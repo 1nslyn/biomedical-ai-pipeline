@@ -65,7 +65,7 @@ Expected (a warning if missing): `doi`, `authors`, `backbone`, `data`, `tasks`,
 | `params_status` | Why `params` is empty: `not published`, `n/a`, `unchecked`. |
 | `backbone` | One line of architecture. |
 | `pretraining` | List, from the `pretraining` vocabulary. |
-| `pretraining_short` | The named recipe for the scan table: `DINOv2`, `iBOT → CoCa`. |
+| `pretraining_short` | The pre-training objective for the scan table: `DINOv2`, `iBOT → CoCa`; `none — frozen ResNet-50 / CONCH` when the work pre-trains nothing itself; `not disclosed` when no source says. |
 | `data.scale` | Integers, with keys naming what was counted. |
 | `training_slides` | Whole slides trained on, for the scan table: `1.5M`, `none (208K image–text)`. |
 | `tasks` | List, from the `tasks` vocabulary. |
@@ -123,8 +123,8 @@ work instead of a silent hole.
 
 Two parts, both generated:
 
-- a scan table — model, model size, training slides, pre-training, downstream
-  tasks — with the model name linking into its record;
+- a scan table — model, model size, training slides, pre-training objective,
+  downstream tasks — with the model name linking into its record;
 - one collapsed record per model, holding the paper, authors, architecture,
   data, tasks and reported performance.
 

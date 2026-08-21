@@ -39,7 +39,7 @@
   # params: deliberately absent -- see the verify note for what was checked.
   params: null
   params_status: not published
-  pretraining_short: ImageNet ConvNeXt → tissue-class tuning
+  pretraining_short: none — ImageNet ConvNeXt, fine-tuned
   # The 25,712 GTEx slides are both the fitting and the internal evaluation set --
   # the clocks are trained cross-validated over the cohort, then applied unchanged
   # to separate external brain, lung and skin cohorts.
@@ -153,7 +153,7 @@
   params: 4.6B
   # Scan-table copy. These three summarise fields that already appear below --
   # they add no claim, they only choose what fits in a cell. See schema.py.
-  pretraining_short: contrastive → dialogue next-token
+  pretraining_short: contrastive → next-token
   training_slides: 2.35M
   # _source: https://www.nature.com/articles/s41591-026-04521-4 (Methods, "Model
   #          architecture"): perceiver slide encoder (one cross-attention block +
@@ -275,7 +275,7 @@
     license: Apache-2.0
   # params: deliberately absent. No source states a count -- see the verify note.
   params_status: not published
-  pretraining_short: DINO ViT-S/8 encoder, then frozen
+  pretraining_short: none — frozen DINO ViT-S/8
   # PRET fits no task-specific parameters at all; the 4,484 WSIs in data.scale are
   # the evaluation set, not a training set.
   training_slides: none (training-free)
@@ -364,7 +364,7 @@
   # `n/a` rather than `not published`: this paper introduces no model, so there is
   # no count for anyone to fill in later.
   params_status: n/a
-  pretraining_short: frozen CTransPath + CLAM/SlideGraph
+  pretraining_short: none — frozen CTransPath / ShuffleNet
   # The cohort is reported in patients; no slide count appears in the full text.
   training_slides: not stated (8.2K patients)
   backbone: >-
@@ -486,7 +486,7 @@
   params_status: not published
   # The informative part of this method is the hierarchy, not the supervision:
   # WSIs -> predicted methylation/expression -> 9 families -> 52 terminal types.
-  pretraining_short: WSI → molecular inference → hierarchy
+  pretraining_short: not disclosed
   # The abstract counts samples, not slides -- see the data.scale comment.
   training_slides: 5.8K samples (not slides)
   # _source: this line has been rewritten to only what is sourced. Published abstract
@@ -614,7 +614,7 @@
   # _source: https://huggingface.co/api/models/Astaxanthin/KEEP (safetensors total
   # 414,210,816) and https://huggingface.co/Astaxanthin/KEEP ("Model size 0.4B params")
   params: 414M
-  pretraining_short: knowledge-graph metric + contrastive
+  pretraining_short: knowledge-enhanced contrastive
   # KEEP trains on tile-level image-text pairs from OpenPath and Quilt-1M; no whole
   # slide enters pretraining.
   training_slides: none (tile–text pairs)
@@ -723,7 +723,7 @@
   # _source: not published. See the verify note for the routes tried.
   params: null
   params_status: not published
-  pretraining_short: supervised histomorphologic screening
+  pretraining_short: not disclosed
   # The abstract counts patients; the development cohort is 178 of the 477.
   training_slides: not stated (178 patients)
   # _source: EPMC abstract (PMID 41671529). Replaces "Not stated in the paper", which
@@ -815,7 +815,7 @@
   params: 48.5M
   # Excludes the frozen CONCH v1.5 patch encoder -- see model.params_note.
   params_scope: slide enc.
-  pretraining_short: iBOT → CoCa (3 stages)
+  pretraining_short: iBOT → CoCa
   training_slides: 336K
   backbone: ViT slide encoder (Transformer-based Image and Text Alignment Network) over CONCH v1.5 patch features
   # _source: PMC12618242 -- "we apply the iBOT framework for vision-only pretraining of
@@ -926,7 +926,7 @@
   params: 1.2M
   # Excludes the frozen ResNet-50/CONCH patch encoder -- see model.params_note.
   params_scope: MIL head
-  pretraining_short: weakly supervised MIL, frozen encoder
+  pretraining_short: none — frozen ResNet-50 / CONCH
   # The 3,850 slides are the whole benchmark; SMMILe is trained and tested on them
   # under cross-validation, so this is not a held-out pretraining corpus.
   training_slides: 3.9K (cross-validated)
@@ -1099,7 +1099,14 @@
   # params: deliberately absent -- no parameter count is published by the authors
   #   anywhere reachable. See the verify note below for the routes tried.
   params_status: not published
-  pretraining_short: CTransPath tiles → weakly supervised
+  # Generic on purpose, and the only row here that is. Every other entry names an
+  # objective (DINOv2, iBOT -> CoCa) or declares it has none; this one is vague
+  # because the authors are: the abstract says only "unsupervised pretraining for
+  # tile-level feature identification and weakly supervised pretraining for
+  # whole-slide pattern recognition", the Methods are paywalled, and no reachable
+  # source names the tile-level algorithm. Do not substitute SRCL or any other
+  # guess from CTransPath's own paper -- that is a different team's wording.
+  pretraining_short: unsupervised tiles → weak slide labels
   training_slides: 60.5K
   backbone: CTransPath tile encoder with a weakly supervised whole-slide aggregation module
   pretraining: [self-supervised, weakly supervised]
@@ -1264,7 +1271,7 @@
   # Two components counted separately; the 86M LongNet slide encoder is the other
   # half and is named in model.params_note rather than crowding the scan table.
   params_scope: tile enc.
-  pretraining_short: DINOv2 tiles → LongNet MAE slides
+  pretraining_short: DINOv2 → LongNet MAE
   training_slides: 171K
   # _source https://raw.githubusercontent.com/prov-gigapath/prov-gigapath/main/README.md
   #   -- "the original GigaPath slide encoder (12L/768d over 1536-dim tile embeddings)";
@@ -1500,7 +1507,7 @@
     weights: https://huggingface.co/vinid/plip
   # params stays empty -- genuinely not published. See the verify note for routes tried.
   params_status: not published
-  pretraining_short: CLIP contrastive fine-tune
+  pretraining_short: CLIP contrastive
   # OpenPath is tile-level image-text pairs scraped from Twitter; no whole slides.
   training_slides: none (208K image–text)
   # _source CONFIRMED: https://huggingface.co/vinid/plip/raw/main/config.json --

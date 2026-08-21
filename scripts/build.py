@@ -211,7 +211,8 @@ def render_index_table(entries: list[dict]) -> list[str]:
     which is one click away on the model name.
     """
     lines = [
-        "| Date | Model | Venue | Model size | Training slides | Pre-training | Downstream tasks |",
+        "| Date | Model | Venue | Model size | Training slides | Pre-training objective "
+        "| Downstream tasks |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for entry in entries:
@@ -239,7 +240,11 @@ TABLE_LEGEND = (
     "comparable. <i>not published</i> means the access routes were worked and no "
     "author source states one; <i>n/a</i> means the paper does not introduce a "
     "model. <b>Training slides</b> counts whole slides used for training, so a "
-    "model trained on tiles or image–text pairs shows what it used instead.</sub>"
+    "model trained on tiles or image–text pairs shows what it used instead. "
+    "<b>Pre-training objective</b> names the objective the authors trained with. "
+    "<i>none</i> means the work does no pre-training of its own and reuses the "
+    "frozen encoder named after it; <i>not disclosed</i> means no reachable "
+    "source states one.</sub>"
 )
 
 
