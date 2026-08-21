@@ -6,6 +6,123 @@
 #
 # Field reference: CONTRIBUTING.md
 
+- date: 2026-08
+  title: Histological aging signatures for monitoring tissue-specific aging and disease
+  url: https://www.nature.com/articles/s41591-026-04566-5
+  doi: 10.1038/s41591-026-04566-5
+  venue: Nat. Med.
+  authors:
+    first:
+      name: Ernesto Abila
+      scholar: null            # not filled -- see the verify note, do not guess one
+    last:
+      name: André F. Rendeiro
+      scholar: null            # not filled -- see the verify note, do not guess one
+  model:
+    name: Tissue Clocks
+    # _source: article Code availability -- "Source code is publicly available at the
+    #          GitHub repository https://github.com/rendeirolab/tissue-clocks". No
+    #          checkpoint is released: the Zenodo deposits carry the fine-tuning
+    #          datasets and the processed GTEx features, so `weights` stays absent.
+    repo: https://github.com/rendeirolab/tissue-clocks
+    # _source: the repository LICENSE file, read directly. The GitHub API reports
+    #          NOASSERTION only because PolyForm is not in its SPDX list; the file
+    #          reads "PolyForm Noncommercial License 1.0.0".
+    license: PolyForm-Noncommercial-1.0.0
+  # params: deliberately absent -- see the verify note for what was checked.
+  params: null
+  params_status: not published
+  pretraining_short: ImageNet ConvNeXt → tissue-class tuning
+  # The 25,712 GTEx slides are both the fitting and the internal evaluation set --
+  # the clocks are trained cross-validated over the cohort, then applied unchanged
+  # to separate external brain, lung and skin cohorts.
+  training_slides: 25.7K (cross-validated)
+  # _source: Methods, "we fine-tuned a variety of vision model architectures in a
+  #          tissue classification task ... We built upon well-established and
+  #          pretrained models (AlexNet, VGG16, ResNet50, ResNet152, ResNet50,
+  #          ConvNeXt tiny and ConvNeXt base), with a classifier head corresponding
+  #          to the tissue classes. To train the new classifier head layer, we first
+  #          froze all layers of the pretrained model and trained one epoch, followed
+  #          by up to 100 epochs of fine-tuning". Extended Data Fig. 1d-f identify the
+  #          fine-tuned ConvNeXt base as the model carried forward.
+  backbone: >-
+    ImageNet-pretrained ConvNeXt base, fine-tuned as a tissue-type classifier and then
+    frozen as a feature extractor; a slide is represented by its mean tile embedding at
+    three magnifications, and regularised linear or ensemble regressors map that to age
+  pretraining: [supervised]
+  # _source: Methods as quoted above, plus "Inference was run on a high-performance
+  #          computing cluster using CPUs for all tiles in all slides at three levels
+  #          of magnification (~480 million tiles). We worked with three different tile
+  #          widths (224, 448 and 896 pixels at ~0.5 microns per pixel)".
+  pretraining_detail: >-
+    Supervised transfer learning rather than pathology-specific pretraining. ImageNet
+    architectures (AlexNet, VGG16, ResNet50, ResNet152, ConvNeXt tiny and ConvNeXt base)
+    were fine-tuned to classify tissue type on a dataset balanced across tissue, age
+    bracket and sex -- one epoch with the backbone frozen, then up to 100 epochs of
+    fine-tuning -- and the fine-tuned ConvNeXt base was carried forward. Tiles of 224,
+    448 and 896 pixels at roughly 0.5 microns per pixel are embedded and averaged per
+    slide, and the age regressor is fitted on those features.
+  data:
+    # _source: abstract -- "25,712 whole-slide histopathological images from 40 tissue
+    #          types across 983 individuals in the Genotype-Tissue Expression cohort";
+    #          Fig. 1a caption -- "spans 29 organs and 40 tissues from 983 individuals";
+    #          Methods -- "~480 million tiles".
+    description: >-
+      GTEx post-mortem H&E whole-slide images spanning 40 tissue types and 29 organs,
+      paired with the cohort's transcriptomic, methylation and phenotypic records.
+      Validated on separate brain, lung and skin cohorts.
+    scale:
+      whole_slide_images: 25712
+      individuals: 983
+      tissue_types: 40
+      image_tiles: 480000000
+  tasks: [regression, risk prediction, benchmarking]
+  tasks_detail: >-
+    Predicts chronological age from tissue morphology and treats the residual -- the
+    "age gap" -- as a measure of biological aging; relates tissue-specific age
+    acceleration to telomere length, subclinical pathology, comorbidities and lifestyle
+    factors; predicts tissue-specific age gaps from blood gene expression via ridge
+    regression; and benchmarks 7 classical vision models and 18 pathology foundation
+    models as feature extractors for the same task.
+  modalities: [histopathology, transcriptomics]
+  performance:
+    # _source: Results -- "We used the model predictions to assess their performance and
+    #          found an average mean absolute error (MAE) of 4.88 years across all
+    #          tissues and a coefficient of determination of 0.69".
+    - benchmark: GTEx, biological age from histology (cross-validated, all tissues)
+      metric: mean absolute error
+      value: "4.88 years"
+      note: coefficient of determination 0.69
+    # _source: Results -- "The classical models, which were never trained on tissue
+    #          images, showed predictive power but were not on par with our model
+    #          (mean MAE across organs and models of 8.67), whereas the performance of
+    #          foundation models was more comparable to our own model (mean MAE across
+    #          organs and models of 5.74)." Caveat quoted from the same section.
+    - benchmark: Feature-extractor comparison, 7 classical vision and 18 pathology foundation models
+      metric: mean MAE across organs and models
+      value: "8.67 vs 5.74"
+      note: >-
+        classical ImageNet models 8.67, pathology foundation models 5.74, against 4.88
+        for this paper's fine-tuned model. The authors caution that some foundation
+        models were pretrained on data that includes GTEx, which may flatter them here.
+    # _source: Results -- "we validated the histological predictors in external cohorts
+    #          of brain (n = 70), lung (n = 40) and skin (n = 185) donors ... (Pearson
+    #          correlation coefficients of 0.56, 0.76 and 0.46 for brain, lung and skin,
+    #          respectively)".
+    - benchmark: External cohorts, GTEx-trained clocks applied unchanged
+      metric: Pearson correlation with chronological age
+      value: "0.56 / 0.76 / 0.46"
+      note: brain (n = 70), lung (n = 40) and skin (n = 185)
+  verify:
+    - >-
+      params not published. The open-access full text states no parameter count -- its
+      only two uses of "parameter" are the PCA and ridge hyperparameters -- no
+      checkpoint is released, and the repository ships analysis code rather than
+      weights. Do not infer a count from "ConvNeXt base".
+    - >-
+      author Scholar profiles left null rather than guessed. Fill them if someone
+      confirms the right profiles.
+  added: {date: 2026-08, by: Leo Yin}
 - date: 2026-07
   title: End-to-end multimodal pathology foundation model with clinical dialogue
   url: https://www.nature.com/articles/s41591-026-04521-4
