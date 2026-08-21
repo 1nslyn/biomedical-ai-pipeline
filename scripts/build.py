@@ -150,13 +150,14 @@ def term_cell(terms: list[str] | None, limit: int = 3) -> str:
 
 
 def date_cell(entry: dict) -> str:
-    """`2026-07` as `2026.07`.
+    """`2026-07` as `202607`.
 
-    The hyphen is a break opportunity, so a narrow first column renders it as
-    "2026-" over "07". A dot is not, so the cell always stays on one line.
+    A separator is a line-break opportunity, so a narrow first column renders
+    "2026-" over "07". Dropping it entirely keeps the cell on one line and
+    leaves the column sorting the same way it reads.
     """
     date = str(entry.get("date") or "").strip()
-    return date.replace("-", ".") if date else "—"
+    return date.replace("-", "") if date else "—"
 
 
 def params_cell(entry: dict) -> str:

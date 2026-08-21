@@ -869,7 +869,8 @@
   #   final model: "in this study, we chose MUSK-large as our final model".
   params: 675M
   pretraining_short: BEiT-3 MIM → contrastive
-  training_slides: 33K
+  # "nearly 33,000" in the paper, so the cell is marked approximate.
+  training_slides: ~33K
   # _source: PMC12295649 Methods + Fig. 1 caption + Supplementary Table 16 (Large column)
   backbone: >-
     BEiT-3-style multimodal transformer -- shared self-attention blocks with two
@@ -1033,7 +1034,8 @@
   #   (https://huggingface.co/paige-ai/Virchow, "632 million parameters", ViT-H/14).
   params: 632M
   pretraining_short: DINOv2
-  training_slides: 1.5M
+  # "approximately 1.5 million" in the paper, so the cell is marked approximate.
+  training_slides: ~1.5M
   backbone: ViT-H/14
   pretraining: [DINOv2]
   pretraining_detail: Self-supervised DINOv2 pretraining on H&E whole-slide images.
