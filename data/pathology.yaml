@@ -14,10 +14,17 @@
   authors:
     first:
       name: Ernesto Abila
-      scholar: null            # not filled -- see the verify note, do not guess one
+      # _source: the author's own ORCID record, 0009-0005-5995-4815 (researcher-urls,
+      #          "Google Scholar"). Confirmed: the profile is titled "Ernesto Abila",
+      #          is verified at cemm.oeaw.ac.at -- the affiliation on this paper -- and
+      #          lists this exact article.
+      scholar: https://scholar.google.com/citations?user=EaXz-AIAAAAJ&hl=en
     last:
       name: André F. Rendeiro
-      scholar: null            # not filled -- see the verify note, do not guess one
+      # _source: the author's own ORCID record, 0000-0001-9362-5373 (researcher-urls,
+      #          "Google scholar"). Confirmed: titled "André F Rendeiro", verified at
+      #          cemm.oeaw.ac.at, and lists this article when sorted by date.
+      scholar: https://scholar.google.at/citations?user=lj17pqEAAAAJ&hl=en
   model:
     name: Tissue Clocks
     # _source: article Code availability -- "Source code is publicly available at the
@@ -119,9 +126,6 @@
       only two uses of "parameter" are the PCA and ridge hyperparameters -- no
       checkpoint is released, and the repository ships analysis code rather than
       weights. Do not infer a count from "ConvNeXt base".
-    - >-
-      author Scholar profiles left null rather than guessed. Fill them if someone
-      confirms the right profiles.
   added: {date: 2026-08, by: Leo Yin}
 - date: 2026-07
   title: End-to-end multimodal pathology foundation model with clinical dialogue
@@ -456,8 +460,25 @@
   doi: 10.1016/S1470-2045(25)00661-8
   venue: Lancet Oncol.
   authors:
-    first: {name: H. Lalchungnunga}
-    last: {name: Kenneth Aldape}
+    first:
+      name: H. Lalchungnunga
+      # No Google Scholar author profile found. Searched ORCID (three same-name
+      # records, all Mizoram/Serkawn in India, none at the NCI) and the web; a
+      # ResearchGate profile exists for the NCI postdoc but is not a Scholar
+      # profile. Left null rather than attach the wrong person.
+      scholar: null
+    last:
+      name: Kenneth Aldape
+      # _source: scholar.google.com/citations?user=vZM9E_AAAAAJ -- profile named
+      #          "Kenneth Aldape", verified email at nih.gov, matching the paper's
+      #          NCI Laboratory of Pathology affiliation, and its entire 2026 output
+      #          is CNS tumour neuropathology and DNA methylation classification,
+      #          which is this paper's subject. His ORCID (0000-0001-5119-7550)
+      #          lists no researcher URLs, so this was confirmed from the profile
+      #          itself. NOTE: this Lancet Oncol. paper is not yet indexed on the
+      #          profile -- Elsevier indexing lag -- so the match rests on identity,
+      #          not on the article appearing there.
+      scholar: https://scholar.google.com/citations?user=vZM9E_AAAAAJ&hl=en
   model:
     name: Neuropath-AI
     weights: https://methylscape.ccr.cancer.gov/
@@ -568,7 +589,14 @@
   doi: 10.1016/j.ccell.2026.01.019
   venue: Cancer Cell
   authors:
-    first: {name: Xiao Zhou}
+    first:
+      name: Xiao Zhou
+      # No Google Scholar profile attached on purpose. The name is very common,
+      # neither the arXiv preprint, the GitHub repo nor the project page links an
+      # author profile, and the one ORCID record matching "Xiao Zhou" with a
+      # Shanghai Jiao Tong query is actually at EPFL/McGill. Guessing here would
+      # credit the wrong researcher.
+      scholar: null
     last:
       name: Weidi Xie
       scholar: https://scholar.google.com/citations?user=Vtrqj4gAAAAJ&hl=zh-CN
