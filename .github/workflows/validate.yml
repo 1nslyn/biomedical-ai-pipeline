@@ -20,11 +20,27 @@ jobs:
 
       # The catalogue is a separate repository with no tooling in it, so the
       # build needs a checkout of it to render into and to diff against.
+      #
+      # Which checkout matters. A change here almost always comes with a
+      # matching change there, and by convention the two use the SAME branch
+      # name (see .claude/commands/weekly-scan.md). Pinning this to the
+      # catalogue's default branch would diff a pull request's new YAML against
+      # the catalogue's *old* published markdown, so every correctly-paired PR
+      # would fail. Prefer the branch of the same name, fall back to main.
       - name: Check out the catalogue
-        uses: actions/checkout@v4
-        with:
-          repository: medfm-flare/AwesomeBiomedicalAI
-          path: catalogue
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          REPO=https://github.com/medfm-flare/AwesomeBiomedicalAI.git
+          if git ls-remote --exit-code --heads "$REPO" "$BRANCH" >/dev/null 2>&1; then
+            echo "Catalogue has a branch named '$BRANCH' -- validating against it."
+            git clone --quiet --depth 1 --branch "$BRANCH" "$REPO" catalogue
+          else
+            echo "No catalogue branch named '$BRANCH' -- validating against its default branch."
+            git clone --quiet --depth 1 "$REPO" catalogue
+          fi
+          echo "catalogue at $(git -C catalogue rev-parse --short HEAD) on $(git -C catalogue rev-parse --abbrev-ref HEAD)"
 
       - name: Schema, vocabulary and duplicate check
         run: python scripts/validate.py --report
@@ -32,10 +48,25 @@ jobs:
       # The markdown is generated. If someone edited a .md by hand, or edited
       # the YAML without rebuilding, the two are out of sync and the diff on
       # main would be wrong -- so fail here with the exact command to run.
+      #
+      # On main this also catches half-landed work: merging the pipeline PR
+      # without its catalogue twin leaves the published page stale, and that is
+      # worth blocking on rather than discovering weeks later.
       - name: Generated markdown matches the published catalogue
         env:
           CATALOGUE_PATH: ${{ github.workspace }}/catalogue
-        run: python scripts/build.py --check
+        run: |
+          python scripts/build.py --check || {
+            echo
+            echo "::error::The catalogue checkout does not match what this data renders."
+            echo "Two repositories change together. Either:"
+            echo "  * this branch rebuilt the YAML but its catalogue PR is not merged yet"
+            echo "    -- merge the catalogue side, or give both branches the same name so"
+            echo "       this job checks out the matching one; or"
+            echo "  * someone edited a .md by hand, or edited YAML without rebuilding"
+            echo "    -- run 'python scripts/build.py' and commit the result."
+            exit 1
+          }
 
   links:
     # Publishers rate-limit, so this runs on a schedule rather than per-PR.
