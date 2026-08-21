@@ -12,6 +12,7 @@ the README. That way nobody is blocked on a big-bang conversion.
 from __future__ import annotations
 
 import argparse
+import html as html_mod
 import os
 import re
 import sys
@@ -77,6 +78,25 @@ def link(url: str, text: str | None = None) -> str:
         if len(text) > 60:
             text = text[:57] + "…"
     return f"[{text}]({safe_url(url)})"
+
+
+def esc(text) -> str:
+    """Escape a value for use as HTML text."""
+    return html_mod.escape(str(text), quote=False)
+
+
+def html_link(url: str, text: str | None = None) -> str:
+    """An <a> for the spec table, which is raw HTML rather than markdown."""
+    if not text:
+        text = re.sub(r"^https?://(www\.)?", "", str(url)).rstrip("/")
+        if len(text) > 60:
+            text = text[:57] + "\u2026"
+    return f'<a href="{html_mod.escape(str(url), quote=True)}">{esc(text)}</a>'
+
+
+def html_terms(terms: list[str]) -> str:
+    """Controlled-vocabulary terms as <code> chips."""
+    return ", ".join(f"<code>{esc(t)}</code>" for t in terms)
 
 
 def anchor_id(entry: dict) -> str:
@@ -211,7 +231,8 @@ def render_index_table(entries: list[dict]) -> list[str]:
     which is one click away on the model name.
     """
     lines = [
-        "| Date | Model | Venue | Model size | Training slides | Pre-training | Downstream tasks |",
+        "| Date | Model | Venue | Model size | Training slides | Pre-training objective "
+        "| Downstream tasks |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for entry in entries:
@@ -239,7 +260,11 @@ TABLE_LEGEND = (
     "comparable. <i>not published</i> means the access routes were worked and no "
     "author source states one; <i>n/a</i> means the paper does not introduce a "
     "model. <b>Training slides</b> counts whole slides used for training, so a "
-    "model trained on tiles or image–text pairs shows what it used instead.</sub>"
+    "model trained on tiles or image–text pairs shows what it used instead. "
+    "<b>Pre-training objective</b> names the objective the authors trained with. "
+    "<i>none</i> means the work does no pre-training of its own and reuses the "
+    "frozen encoder named after it; <i>not disclosed</i> means no reachable "
+    "source states one.</sub>"
 )
 
 
@@ -301,31 +326,36 @@ def render_detail(entry: dict, vocab: Vocab) -> list[str]:
     out.append(" · ".join(byline))
     out.append("")
 
+    # Raw HTML rather than a markdown table. A markdown table must have a header
+    # row, and this one has no headers to give -- it is label/value pairs -- so
+    # GitHub rendered `| | |` as a visibly empty <thead> above every record.
+    # The cost is that markdown is not processed inside an HTML block, so every
+    # value here is built as HTML and its text escaped.
     rows: list[tuple[str, str]] = []
     if entry.get("params"):
-        rows.append(("Parameters", entry["params"]))
+        rows.append(("Parameters", esc(entry["params"])))
     if model.get("params_note"):
-        rows.append(("Parameter note", model["params_note"]))
+        rows.append(("Parameter note", esc(model["params_note"])))
     if entry.get("backbone"):
-        rows.append(("Backbone", entry["backbone"]))
+        rows.append(("Backbone", esc(entry["backbone"])))
 
     pretraining = entry.get("pretraining") or []
     detail = entry.get("pretraining_detail")
     if pretraining or detail:
-        value = ", ".join(f"`{p}`" for p in pretraining)
+        value = html_terms(pretraining)
         if detail:
-            value = f"{value}<br>{detail}" if value else detail
+            value = f"{value}<br>{esc(detail)}" if value else esc(detail)
         rows.append(("Pre-training", value))
 
     data = entry.get("data") or {}
     if data:
-        value = data.get("description", "")
+        value = esc(data.get("description", ""))
         scale = data.get("scale") or {}
         if scale:
             chips = " · ".join(
-                f"**{v:,}** {SCALE_LABELS.get(k, k.replace('_', ' '))}"
+                f"<strong>{v:,}</strong> {esc(SCALE_LABELS.get(k, k.replace('_', ' ')))}"
                 if isinstance(v, int)
-                else f"**{v}** {k.replace('_', ' ')}"
+                else f"<strong>{esc(v)}</strong> {esc(k.replace('_', ' '))}"
                 for k, v in scale.items()
             )
             value = f"{value}<br>{chips}" if value else chips
@@ -334,28 +364,28 @@ def render_detail(entry: dict, vocab: Vocab) -> list[str]:
     tasks = entry.get("tasks") or []
     tasks_detail = entry.get("tasks_detail")
     if tasks or tasks_detail:
-        value = ", ".join(f"`{t}`" for t in tasks)
+        value = html_terms(tasks)
         if tasks_detail:
-            value = f"{value}<br>{tasks_detail}" if value else tasks_detail
+            value = f"{value}<br>{esc(tasks_detail)}" if value else esc(tasks_detail)
         rows.append(("Downstream tasks", value))
 
     if entry.get("modalities"):
-        rows.append(("Modalities", ", ".join(f"`{m}`" for m in entry["modalities"])))
+        rows.append(("Modalities", html_terms(entry["modalities"])))
     if model.get("repo"):
-        rows.append(("Code", link(model["repo"])))
+        rows.append(("Code", html_link(model["repo"])))
     if model.get("weights"):
-        rows.append(("Weights", link(model["weights"])))
+        rows.append(("Weights", html_link(model["weights"])))
     if model.get("license"):
-        rows.append(("License", model["license"]))
+        rows.append(("License", esc(model["license"])))
     if entry.get("notebooklm"):
-        rows.append(("NotebookLM", link(entry["notebooklm"], "open notebook")))
+        rows.append(("NotebookLM", html_link(entry["notebooklm"], "open notebook")))
     if entry.get("note"):
-        rows.append(("Note", entry["note"]))
+        rows.append(("Note", esc(entry["note"])))
 
-    out.append("| | |")
-    out.append("| --- | --- |")
+    out.append("<table>")
     for label, value in rows:
-        out.append(f"| **{label}** | {escape_cell(value)} |")
+        out.append(f"<tr><td><strong>{esc(label)}</strong></td><td>{value}</td></tr>")
+    out.append("</table>")
     out.append("")
 
     perf = entry.get("performance") or []

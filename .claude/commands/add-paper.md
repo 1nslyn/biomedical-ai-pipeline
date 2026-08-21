@@ -117,13 +117,23 @@ a human with browser access.
 - `backbone` — architecture in one line.
 - `pretraining` — terms from the `pretraining` list in `data/vocab.yaml`.
   `pretraining_detail` — the recipe in one or two sentences.
-- `pretraining_short` — the same recipe compressed to a table cell, ≤44
-  characters: `DINOv2`, `iBOT → CoCa`, `BEiT-3 MIM → contrastive`. **Name the
-  method, not the supervision paradigm.** "self-supervised" is true of nearly
-  every model in this catalogue, so it tells a reader nothing. Where the authors
-  genuinely describe no recipe, say what the system does instead
-  (`WSI → molecular inference → hierarchy`). This is a summary of
-  `pretraining_detail` and must not add a claim it does not support.
+- `pretraining_short` — the **pre-training objective**, ≤44 characters. This is
+  the "Pre-training objective" column, and every cell must answer that one
+  question, so a reader can compare rows. Four shapes, in order of preference:
+    1. **Name the objective**: `DINOv2`, `iBOT → CoCa`, `BEiT-3 MIM →
+       contrastive`. **Name the method, not the supervision paradigm** —
+       "self-supervised" is true of nearly every model here, so it says nothing.
+    2. **`none — <encoder>`** when the work does no pre-training of its own and
+       reuses a frozen encoder: `none — frozen ResNet-50 / CONCH`. Say this
+       rather than describing the pipeline; a MIL head or a benchmarking study
+       is not a pre-training recipe, and dressing one up as one misleads.
+    3. **The authors' own generic wording**, when they pre-train but name no
+       algorithm — `unsupervised tiles → weak slide labels` for CHIEF. Generic
+       is acceptable *only* when it is their word, never as your shorthand, and
+       never guessed from a cited backbone's separate paper.
+    4. **`not disclosed`** when no reachable source describes the training.
+  Do not put the task pipeline here — that belongs in `tasks_detail`. This is a
+  summary of `pretraining_detail` and must not add a claim it does not support.
 - `data.description` and `data.scale` — real integers from the paper. Use keys
   that say what was counted (`whole_slide_images`, `patients`, `image_text_pairs`).
   Drop the placeholder keys you do not need.
