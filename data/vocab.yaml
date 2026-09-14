@@ -77,22 +77,39 @@ venues:
 # curated journal list.
 # ---------------------------------------------------------------------------
 discovery_keywords:
+  # PubMed's quoted [tiab] phrase search matches literally -- no plurals, no
+  # stemming -- so list the forms authors actually write. "foundation model"
+  # alone missed nnMIL (Nat. Biomed. Eng. 2026), whose abstract says
+  # "foundation models" and "multiple-instance learning".
   ai:
     - foundation model
+    - foundation models
     - large language model
+    - large language models
     - vision-language
     - vision language
     - self-supervised
+    - weakly supervised
+    - weakly-supervised
+    - multiple instance learning
+    - multiple-instance learning
     - deep learning
     - machine learning
     - artificial intelligence
     - neural network
+    - neural networks
     - transformer
+    - transformers
     - generative model
+    - generative models
     - diffusion model
+    - diffusion models
     - multimodal model
+    - multimodal models
     - AI agent
+    - AI agents
     - LLM
+    - LLMs
   biomedical:
     - pathology
     - histopathology
