@@ -23,6 +23,8 @@ import sys
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+
+import yaml
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -132,6 +134,23 @@ def from_arxiv(arxiv_id: str, vocab: Vocab) -> tuple[dict, list[str]]:
     )
 
 
+def yaml_scalar(value: str) -> str:
+    """Render a string so it survives being pasted into a YAML mapping value.
+
+    Crossref titles are free text: "nnMIL: a generalizable ..." contains ": ",
+    which YAML reads as a nested mapping, and a title such as "2024" or "true"
+    would come back as a number or a boolean. Ask the parser rather than guess:
+    if the plain form does not round-trip, emit a double-quoted (JSON-style)
+    scalar, which YAML accepts verbatim.
+    """
+    try:
+        if yaml.safe_load(f"k: {value}") == {"k": value}:
+            return value
+    except yaml.YAMLError:
+        pass
+    return json.dumps(value, ensure_ascii=False)
+
+
 TEMPLATE = """\
 # Paste this into data/<domain>.yaml, fill every TODO, then run:
 #     python scripts/build.py && python scripts/validate.py
@@ -200,12 +219,12 @@ def main() -> int:
         TEMPLATE.format(
             notes=banner,
             date=fields["date"],
-            title=fields["title"],
+            title=yaml_scalar(fields["title"]),
             url=fields["url"],
             doi=fields["doi"],
-            venue=fields["venue"],
-            first_name=fields["authors"]["first"]["name"],
-            last_name=fields["authors"]["last"]["name"],
+            venue=yaml_scalar(fields["venue"]),
+            first_name=yaml_scalar(fields["authors"]["first"]["name"]),
+            last_name=yaml_scalar(fields["authors"]["last"]["name"]),
             added=added,
         ).replace("by: TODO", f"by: {args.added_by}")
     )
