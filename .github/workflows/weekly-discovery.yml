@@ -48,8 +48,20 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      # discover.py drops candidates that are already on a page, so it needs a
+      # checkout of the catalogue and exits if it cannot find one (see
+      # require_catalogue in scripts/lib/schema.py). Without this step every
+      # scheduled run failed before scanning anything. The default branch is
+      # the right one here: this job proposes against what is published.
+      - name: Check out the catalogue
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth 1 https://github.com/medfm-flare/AwesomeBiomedicalAI.git catalogue
+          echo "catalogue at $(git -C catalogue rev-parse --short HEAD)"
+
       - name: Scan for new papers
         env:
+          CATALOGUE_PATH: ${{ github.workspace }}/catalogue
           # Optional. Without it the scan still runs; candidates just arrive
           # unrouted instead of grouped by domain page.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
