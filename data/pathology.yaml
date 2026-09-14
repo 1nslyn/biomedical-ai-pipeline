@@ -84,7 +84,7 @@
   #          concatenation as the final slide representation". Constituent models from
   #          "Model design and pretraining" -- "patch-level features were extracted using
   #          five state-of-the-art foundation models with their default settings: UNI,
-  #          CONCHV1.5, GigaPath, H-optimus-08, and Virchow2".
+  #          CONCHV1.5, GigaPath, H-optimus-0, and Virchow2".
   backbone: >-
     An 8-head gated ABMIL slide encoder of 14.3M parameters sitting on top of five frozen
     tile-level pathology foundation models -- UNI, CONCH v1.5, Prov-GigaPath, Virchow2 and
@@ -116,7 +116,7 @@
     non-overlapping regions, both across and within models, as negatives. InfoNCE loss at
     temperature 0.2. Two auxiliary weakly supervised heads predict cancer versus normal and
     the anatomical site among 20 organs, weighted equally with the contrastive loss. 300
-    epochs on 8 NVIDIA H100 GPUs at an effective batch size of 768 slides and up to 4,096
+    epochs on 8 NVIDIA H100 GPUs at an effective batch size of 768 samples and up to 4,096
     patch embeddings per sample.
   data:
     # _source: STAR Methods, "Data curation for pretraining" -- "we collected 53,699
@@ -138,7 +138,7 @@
       # _source: "Data curation for pretraining", quoted above.
       pretraining_whole_slide_images: 53699
       pretraining_datasets: 11
-      anatomical_sites: 20
+      pretraining_anatomical_sites: 20
       # _source: Results, "Design and evaluation of ensemble learning of foundation
       #          models" -- "ELF was evaluated on a wide range of clinical applications,
       #          including classification and subtyping of 4,697 tumor samples, 98
@@ -164,7 +164,8 @@
     across four colorectal cohorts, pan-cancer aneuploidy-score regression, whole-genome
     doubling and tumour mutational burden classification. Response prediction for platinum
     chemotherapy, trastuzumab and bevacizumab, and durable response to immune checkpoint
-    inhibitors across 13 cohorts and 8 cancer types, with Kaplan-Meier stratification of
+    inhibitors across 13 cohorts and 8 cancer types (21 cohorts and 9 cancer types for
+    therapy response overall), with Kaplan-Meier stratification of
     progression-free and recurrence-free survival from the ELF risk score.
   # A pure vision model: the authors call ELF and Prov-GigaPath "both pure vision
   # encoders". PD-L1, TMB and CD8 enter only as separate covariates in downstream logistic
@@ -188,7 +189,7 @@
       note: >-
         BRACS (n = 87) 0.457 against TITAN 0.393, CHIEF 0.384 and Prov-GigaPath 0.323;
         EBRAINS 30-class (n = 573) 0.757 against 0.702 for Virchow2, the best single
-        foundation model. Across all six subtyping tasks ELF beats TITAN by 2.2% on average.
+        foundation model. Across all datasets ELF beats TITAN by 2.2% on average.
     # _source: Results, "Molecular biomarker detection" -- "On the TCGA, ELF achieved a mean
     #          area under the receiver operating characteristic curve (AUC) of 0.719 +/-
     #          0.142 across 84 biomarker-indication combinations, significantly surpassing
@@ -259,17 +260,19 @@
     - >-
       params 14.3M is the article's own figure and covers ELF's ensemble slide encoder
       only. The five constituent tile-level foundation models are frozen, are not retrained
-      and are not included; a reader wanting total inference cost must add them. The
-      released inference checkpoint disagrees in scope rather than in fact: config.json at
-      huggingface.co/luoxd96/ELF reports "n_params": 151304 for the inference-only forward
-      path the card describes as "momentum_enc.norm+attn", which excludes the per-model
-      ABMIL branches and the training-only heads. The paper's figure is the one recorded.
+      and are not included; a reader wanting total inference cost must add them. The released inference checkpoint is much smaller and no author source explains the
+      gap: config.json at huggingface.co/luoxd96/ELF reports "n_params": 151304 for the
+      encoder it labels "momentum_enc.norm+attn", and that figure is exactly the published
+      forward path -- LayerNorm(768) plus eight BatchedABMIL(96) blocks in modeling_elf.py.
+      The article never itemises where the remaining ~14.15M sit. The paper's figure is
+      the one recorded.
     - >-
       an arXiv preprint of this work exists, 2508.16085, cited by the authors' own GitHub
       README and Hugging Face card. It was NOT used as a source for anything in this record
-      -- every quoted number comes from the Cancer Cell author manuscript -- and its
-      abstract wording already differs from the published one, so preprint figures may
-      differ too.
+      -- every quoted number comes from the Cancer Cell author manuscript -- arXiv v2 (7 Aug 2026) carries an abstract identical to the
+      published summary, but v1 (22 Aug 2025) and the abstract pasted into the GitHub
+      README are the older wording, so any figure taken from the preprint would need
+      re-checking.
     - >-
       the supplement (Figures S1-S19, Tables S1-S17, NIHMS2205925-supplement-1.pdf) was not
       read. Europe PMC refuses it ("Article with id PMC13564370 is not open access one")
@@ -279,7 +282,7 @@
       (pretraining data distribution) are all unverified.
     - >-
       the article's own counts for the evaluation set are stated at two different
-      granularities and were not reconciled: the summary and Results say "98 combinations of
+      granularities and were not reconciled: the Results say "98 combinations of
       biomarker-indication assessment in 11,530 patients" and the Discussion says "125
       diverse tasks", while the headline TCGA analysis in Figure 3A is 84 combinations in
       6,510 patients / 7,721 WSIs. The 98/11,530 figure appears to span all biomarker work
@@ -316,8 +319,9 @@
     #          The model weights are available at
     #          https://huggingface.co/General-Medical-AI/SlideChat_Weight."
     repo: https://github.com/uni-medical/SlideChat
-    # NOTE: the weights repo is gated -- an unauthenticated fetch of its model card
-    #       returns HTTP 401 "Access to model ... is restricted".
+    # NOTE: the weights repo is gated ("gated": "auto" in the HF API; downloads need the
+    #       conditions accepted). The model card itself reads unauthenticated and is two
+    #       sentences with no parameter count.
     weights: https://huggingface.co/General-Medical-AI/SlideChat_Weight
     # _source: https://api.github.com/repos/uni-medical/SlideChat -> license.spdx_id
     #          on the repository the article's Code availability names as official.
@@ -327,7 +331,8 @@
   params_status: not published
   # _source: the authors' README on the repo named in Code availability -- "SlideChat
   #          was trained for two stages: (1) Cross-Domain Alignment ... (2) Visual
-  #          Instruction Learning". 43 characters.
+  #          Instruction Learning". 43 characters; "Visual Instruction Learning" is
+  #          rendered as the vocabulary term "instruction tuning" to fit.
   pretraining_short: cross-domain alignment → instruction tuning
   # Stage-1 WSI-caption count, not an evaluation figure. SlideBench's 8,836 closed
   # questions and 3,149 reports are evaluation sets and are deliberately not used here.
@@ -339,15 +344,16 @@
   #          the visual features from the slide-level encoder into a unified space, aligned
   #          seamlessly with the LLM." The slide encoder is identified in the peer-review
   #          file (MOESM3), authors' response to Comment 6: "a LongNet-based encoder with
-  #          sparse attention enables efficient processing of the resulting token sequence".
+  #          sparse attention enables efficient processing of the resulting token sequence",
+  #          and the tiling from the same response: "each 224×224 patch is encoded into a
+  #          vision token".
   #          The LLM is Qwen2.5-7B-Instruct per the authors' arXiv/CVPR preprint
   #          (arXiv:2410.11761v3): "the patch-level encoder CONCH, the slide-level encoder
   #          LongNet, and utilizes the Qwen2.5-7B-Instruct"; Reviewer #2's summary of this
   #          manuscript likewise calls it "a Qwen2.5-7B large language model (LLM)". See the
   #          verify note -- the published article's own architecture text is paywalled.
   backbone: >-
-    Frozen CONCH patch-level encoder over 224x224 tiles, a LongNet slide-level encoder with
-    sparse dilated attention that contextualises the tile tokens, and a multimodal projector
+    Frozen CONCH patch-level encoder over 224x224 tiles, a LongNet slide-level encoder with sparse attention that contextualises the tile tokens, and a multimodal projector
     ("connector") mapping slide tokens into the embedding space of a Qwen2.5-7B-Instruct LLM
   pretraining: [next-token prediction, instruction tuning]
   # _source: stage names and what is frozen from the authors' GitHub README -- "(1)
@@ -367,8 +373,8 @@
   #          pairs ... trained for 1 epoch ... learning rate of 2e-5 ... approximately 24
   #          hours", corroborated by Supplementary Table 19 (MOESM1).
   pretraining_detail: >-
-    No pathology pre-training of its own: the CONCH tile encoder is reused frozen and the
-    work trains the slide encoder, connector and LLM in two supervised generative stages.
+    The CONCH tile encoder is reused frozen; the work's own training is two supervised
+    generative stages over the slide encoder, connector and LLM.
     Stage 1, Cross-Domain Alignment, fits 8,583 WSI-caption pairs with only the LongNet
     slide encoder and the LLM connector unfrozen (3 epochs, AdamW, lr 1e-3, ~3 h). Stage 2,
     Visual Instruction Learning, tunes the slide encoder, connector and LLM jointly on
@@ -385,8 +391,8 @@
     #          CPTAC 240 + HISTAI 769 + MOP 419) and whose report subsets sum to 3,149
     #          (TCGA 1,547 + CPTAC 38 + HISTAI 1,145 + MOP 419).
     description: >-
-      SlideInstruction, built by prompting GPT-4 over TCGA whole-slide images and their
-      paired pathology reports across 31 cancer types, giving one caption per slide for
+      SlideInstruction, built by prompting GPT-4 over the pathology reports and labels paired
+      with TCGA whole-slide images across 31 cancer types, giving one caption per slide for
       stage 1 and open-ended plus multiple-choice instruction pairs for stage 2. Evaluation
       uses SlideBench, the accompanying benchmark, over five cohorts: TCGA, BCNB, CPTAC, the
       public HISTAI set and MOP, a private Eastern Hepatobiliary Surgery Hospital cohort.
@@ -428,30 +434,33 @@
         the abstract's headline margins, for closed-ended accuracy and report-generation
         METEOR respectively; SlideChat also took the highest expert ratings on all five
         open-ended scoring dimensions
-    # _source: the authors' GitHub README, closed-ended table, under the heading "The
-    #          results below correspond to the expanded journal version of SlideChat":
-    #          TCGA Overall SlideChat 0.741 +/- 0.008, GPT-4o 0.557, MedDr 0.490,
-    #          Quilt-LLaVA 0.256, LLaVA-Med 0.298. Supplementary Table 20 (MOESM1)
-    #          independently gives 0.741 for turn 1 over the same N = 3,176.
+    # _source: Supplementary Table 10 (MOESM1), Overall rows, reproduced in the authors'
+    #          GitHub README under the heading "The results below correspond to the
+    #          expanded journal version of SlideChat": TCGA Overall SlideChat 0.741 +/-
+    #          0.008, GPT-4o 0.557, MedDr 0.490, Quilt-LLaVA 0.256, LLaVA-Med 0.298.
+    #          Supplementary Table 20 gives 0.741 for the first of five seeded runs over
+    #          the same N = 3,176.
     - benchmark: SlideBench-Closed (TCGA, N = 3,176)
       metric: accuracy
       value: "0.741"
       note: >-
-        versus GPT-4o 0.557, MedDr 0.490, LLaVA-Med 0.298 and Quilt-LLaVA 0.256. Averaged
-        over five conversational turns rather than turn 1, Supplementary Table 20 reports
-        0.720 +/- 0.011.
-    # _source: the authors' GitHub README, closed-ended table, Overall rows -- BCNB 0.789
-    #          +/- 0.006 (best baseline GPT-4o 0.602), CPTAC 0.517 +/- 0.033 (best baseline
-    #          MedDr 0.358), HISTAI 0.761 +/- 0.016 (best baseline GPT-4o 0.505). Cohort
-    #          sizes from Supplementary Table 3 (MOESM1).
+        versus GPT-4o 0.557, MedDr 0.490, LLaVA-Med 0.298 and Quilt-LLaVA 0.256. Across five independent runs with different sampling seeds, Supplementary Table 20
+        reports a mean of 0.720 +/- 0.011.
+    # _source: Supplementary Table 10 (MOESM1), Overall rows, reproduced in the authors'
+    #          GitHub README -- BCNB 0.789 +/- 0.006 (best baseline GPT-4o 0.602), CPTAC
+    #          0.517 +/- 0.033 (best baseline MedDr 0.358), HISTAI 0.761 +/- 0.016 (best
+    #          baseline GPT-4o 0.505), MOP 0.766 +/- 0.022 (GPT-4o 0.602, MedDr 0.507).
+    #          Cohort sizes from Supplementary Table 3 (MOESM1).
     - benchmark: SlideBench-Closed external cohorts (BCNB / CPTAC / HISTAI)
       metric: accuracy
       value: "0.789 / 0.517 / 0.761"
       note: >-
         N = 4,232 / 240 / 769; best baseline per cohort 0.602 (GPT-4o), 0.358 (MedDr) and
-        0.505 (GPT-4o). The private MOP cohort (N = 419) is evaluated in the paper but no
-        per-cohort figure is quotable from a reachable source.
-    # _source: the authors' GitHub README, "Report Generation" METEOR table, Overall rows --
+        0.505 (GPT-4o). On the private MOP cohort (N = 419) SlideChat scores 0.766, versus GPT-4o 0.602 and
+        MedDr 0.507.
+    # _source: Supplementary Table 15 (MOESM1) for TCGA and CPTAC and Supplementary Table 14
+    #          for HISTAI, reproduced in the authors' GitHub README "Report Generation"
+    #          METEOR table, Overall rows --
     #          TCGA SlideChat 0.214 +/- 0.001 vs HistoGPT 0.097 and PRISM 0.025; CPTAC 0.140
     #          vs 0.139 and 0.059; HISTAI 0.106 vs 0.065 and 0.018.
     - benchmark: SlideBench-Report (TCGA, N = 1,547)
@@ -476,9 +485,11 @@
       SlideChat. Routes worked: the article page (no count in the reachable text), the
       Supplementary Information PDF (its only "Parameter" heading is Supplementary Table 19,
       a hyperparameter table), the peer-review file, the GitHub README, the arXiv/CVPR
-      preprint, and the Hugging Face weights repo -- which is gated (HTTP 401 on the model
-      card) and whose file listing is DeepSpeed .pt shards with no config.json and no
-      safetensors index, so no count could be read there either. The LLM is Qwen2.5-7B-
+      preprint, and the Hugging Face weights repo -- which is gated for downloads but
+      whose model card and file listing read fine unauthenticated: the card is two
+      sentences with no count, and the listing is DeepSpeed .pt shards (stage1_pth/,
+      stage2_pth/) with no config.json and no safetensors index, so no count could be
+      read there either. The LLM is Qwen2.5-7B-
       Instruct, but that is a backbone name rather than a stated count for the released
       model, and the LongNet slide encoder and connector sizes are stated nowhere. Do not
       promote "7B" into this field without an author statement.
@@ -491,11 +502,15 @@
       authors' arXiv:2410.11761v3 / CVPR 2025 preprint does state they use Qwen2.5-7B-
       Instruct. Confirm against the published Methods when someone has access.
     - >-
-      Performance rows 2-4 come from the authors' GitHub README, which labels its tables
-      "the results below correspond to the expanded journal version of SlideChat". They
-      could not be checked against Figs. 2-4 or the Results text, which are paywalled.
-      Supplementary Table 20 independently reproduces the TCGA closed-ended 0.741 at turn 1,
-      which is the only cross-check available.
+      Performance rows 2-4 are in the paper's own Supplementary Information (MOESM1):
+      Supplementary Table 10 carries the full closed-ended table (TCGA, BCNB, CPTAC, HISTAI
+      and MOP against GPT-4o, MedDr, Quilt-LLaVA and LLaVA-Med) and Supplementary Tables
+      15 and 14 the report-generation METEOR tables; the authors' GitHub README reproduces
+      the same numbers under "the results below correspond to the expanded journal
+      version of SlideChat". They could not be checked against Figs. 2-4 or the Results
+      text, which are paywalled. One unresolved inconsistency inside the supplement:
+      Supplementary Table 23's first HISTAI run is 0.745, not the 0.761 that Supplementary
+      Table 10 reports, while TCGA, BCNB and CPTAC match exactly.
     - >-
       Preprint/earlier-version numbers deliberately excluded. The peer-review file summarises
       an earlier manuscript with different headline margins (21.7% accuracy, 11.4% METEOR);
@@ -697,7 +712,7 @@
   #          align with the target domain"; lateral aggregation uses "a gated attention
   #          mechanism" parameterised by "V ∈ ℝ 512×256 , U ∈ ℝ 512×256 , and W ∈ ℝ 256×1";
   #          depth aggregation uses "a simpler non-gated attention mechanism" with
-  #          "K ∈ ℝ 512×256 and L ∈ ℝ 256×1"; the head is "C ∈ ℝ 512× N ... N = 2 for this
+  #          "K ∈ ℝ 512×256 and L ∈ ℝ 256×1"; the head is "C ∈ ℝ 512×n ... n = 2 for this
   #          study". The published Extended Data Fig. 2 caption confirms the encoder and
   #          aggregator choices survived review: CONCH beat UNI and CTransPath, "with CONCH
   #          achieving the best performance", and ABMIL beat TransMIL and DTFD-MIL.
@@ -817,7 +832,7 @@
       metric: AUC
       value: "0.847 vs 0.779"
       note: >-
-        TRICARE L→D versus the 2D baseline, p < 0.005, on 81 levels from 29 patients. The
+        TRICARE L→D versus the 2D baseline, p < 0.005, on 81 levels (63 low-grade + 18 higher-grade) from 29 patients. The
         authors attribute the drop from 0.939 to staining-protocol and microscope
         differences between cohorts. Preprint (CARP3D) figure, not yet checked against the published Results.
     # _source: preprint Results, same paragraph -- "an AUC of 0.917 vs. 0.882 (p < 0.01)
@@ -836,8 +851,8 @@
       value: "0.633 vs 0.614"
       note: >-
         AI-triaged 3D pathology versus conventional 2D histopathology, 59 biopsies read by
-        five pathologists with a one-month washout; F2 0.654 vs 0.588. Eight prostate cases
-        were upgraded and five esophageal cases upgraded with none downgraded. Preprint (CARP3D) figure, not yet checked against the published Results.
+        five pathologists with a one-month washout; F2 0.654 vs 0.588. Eight prostate cases were upgraded and three downgraded; five esophageal cases were
+        upgraded with none downgraded. Preprint (CARP3D) figure, not yet checked against the published Results.
   verify:
     - >-
       Published full text is NOT open access -- nature.com serves "This is a preview of
@@ -867,13 +882,12 @@
       uses "parameter" only in "key design parameters" (Extended Data Fig. 2, meaning
       hyperparameters), the three supplementary PDFs contain none, the preprint Methods give
       only weight-matrix shapes, the README documents CLI flags rather than model size, and
-      no checkpoint is released. Do NOT compute one from the published matrix dimensions
+      no checkpoint is released. Do NOT compute one from the preprint's matrix dimensions
       (V, U ∈ ℝ512×256, W ∈ ℝ256×1, K ∈ ℝ512×256, L ∈ ℝ256×1, C ∈ ℝ512×2) and do NOT
       attribute CONCH's count to TRICARE -- CONCH is frozen and separately published.
     - >-
-      The method is named CARP3D in the preprint, in the CLAM-derived code (`--model_type
-      carp3d_ld`) and in the Zenodo record's earlier text, and TRICARE in the published
-      article. Recorded under the published name. Searching the catalogue for "CARP3D" will
+      The method is named CARP3D in the preprint and in the CLAM-derived code (`--model_type
+      carp3d_ld`), and TRICARE in the published article. Recorded under the published name. Searching the catalogue for "CARP3D" will
       not find this entry.
     - >-
       A precursor exists -- Gao et al., "Triage of 3D pathology data via 2.5D multiple-
@@ -922,10 +936,16 @@
     #          tutorial, is publicly available on GitHub at
     #          https://github.com/Luoxd1996/nnMIL". Verified as the authors' own: the
     #          repo owner is "Xiangde Luo", company "Stanford Medicine", and the README
-    #          gives `luoxd96 at stanford dot edu` as the contact. No checkpoint is
-    #          released and the repository carries no LICENSE file, so `weights` and
-    #          `license` are both absent rather than guessed.
+    #          gives `luoxd96 at stanford dot edu` as the contact. The repository carries
+    #          no LICENSE file, so `license` is absent rather than guessed.
     repo: https://github.com/Luoxd1996/nnMIL
+    # _source: the README's `nnMIL_results` Google Drive bundle -- TUTORIAL.md: "we have
+    #          released the model for evaluation" and "the `nnMIL_results` Google Drive
+    #          snapshot already contains trained checkpoints"; for example
+    #          Task010_TCGA-BRCA/simple_mil/fold_0/ holds best_simple_mil.pth and
+    #          latest_simple_mil.pth (about 5 MB each). Per-task aggregators rather than
+    #          one consolidated model, and no Hugging Face release.
+    weights: https://drive.google.com/drive/folders/1-DPqIUUy0oYFicGGdEuHzehrQQFyDoXI
   # params: deliberately absent -- see the verify note for the routes worked.
   params: null
   params_status: not published
@@ -982,7 +1002,9 @@
     #          major clinical tasks"; Supplementary Tables 22-25 -- "across all 35 tasks
     #          (totally 40 cohorts)", split as diagnosis 8 / biomarker 12 / prognosis 20;
     #          Methods, "Baseline MIL methods" -- "nnMIL was compared against seven
-    #          existing MIL methods". Data availability names every source listed below.
+    #          existing MIL methods". Data availability names every source
+    #          listed below except MUV, whose IDH cohort comes from the EBRAINS digital
+    #          brain tumour atlas (ref. 40) that Data availability does name.
     description: >-
       Public H&E whole-slide benchmarks only, grouped into 35 clinical tasks over 40
       cohorts: BCCC, BRACS, EBRAINS, IMP-CRC2024 and PANDA for diagnosis and subtyping;
@@ -1039,18 +1061,20 @@
     #          performance of nnMIL was highly consistent across different pathology
     #          foundation models, falling within a narrow range of 80.7% and 82.0%".
     - benchmark: Disease diagnosis and subtyping, 8 cohorts (BCCC, BRACS, EBRAINS, IMP-CRC2024, PANDA)
-      metric: mean balanced accuracy
+      metric: mean BACC (kappa for PANDA)
       value: "0.807 - 0.820"
       note: >-
         0.807 GigaPath, 0.818 H-optimus-0, 0.820 UNI, 0.818 Virchow2, against 0.786,
-        0.798, 0.789 and 0.799 for the second-best method ABMIL. PANDA is scored with
-        Cohen's kappa, where nnMIL is slightly behind ABMIL.
+        0.798, 0.789 and 0.799 for ABMIL, which the authors call the second-best method (under UNI,
+        CLAM's 0.795 is in fact higher). PANDA is scored with Cohen's kappa and is the one cohort nnMIL does not lead:
+        0.924 vs ABMIL's 0.938 under UNI, the comparison the paper reports; under
+        Virchow2 the two are level (0.935 vs 0.934).
     # _source: Supplementary Table 25, "Biomarker (12 cohorts)" column; Results -- "nnMIL
     #          with Virchow2 as the feature extractor achieved the highest performance
     #          with a mean performance of 0.794, surpassing ABMIL and DSMIL by 3.3-4.1%
     #          (P < 0.001)".
     - benchmark: Molecular biomarker detection, 12 cohorts, Virchow2 features
-      metric: mean AUC
+      metric: mean AUC (Pearson r for aneuploidy)
       value: "0.794"
       note: >-
         nine biomarkers; P < 0.01. ABMIL reaches 0.767 and DSMIL 0.762 at their best
@@ -1112,10 +1136,14 @@
       Supplementary Table 27 evaluates a fifth, CONCHv1.5, as a cross-encoder
       generalization check; it is recorded in `performance` but not counted in the scale.
     - >-
-      No model weights are released -- the repository ships training and inference code,
-      and the Google Drive bundles linked from its README hold precomputed patch features
-      and experiment outputs rather than a distributable checkpoint. The repository also
-      carries no LICENSE file, so model.license is absent rather than guessed.
+      Weights are released informally: the README-linked nnMIL_results Google Drive bundle
+      holds per-task trained aggregators (best_simple_mil.pth / latest_simple_mil.pth,
+      about 5 MB each, e.g. Task010_TCGA-BRCA/simple_mil/fold_0/) alongside logs, configs
+      and predictions -- TUTORIAL.md: "we have released the model for evaluation". There
+      is no Hugging Face or single consolidated checkpoint, and nnMIL is one aggregator
+      per task rather than one shared model, so model.weights is a folder link. The
+      repository carries no LICENSE file, so model.license is absent rather than guessed,
+      and the released checkpoints are unlicensed too.
   added: {date: 2026-09, by: Leo Yin}
 - date: 2026-07
   title: End-to-end multimodal pathology foundation model with clinical dialogue
@@ -1988,15 +2016,17 @@
   authors:
     first:
       name: Gabriele Campanella
-      # _source: no Google Scholar profile is registered in the author's own ORCID
-      #          record, 0000-0001-6299-1311 (researcher-urls is empty; the record does
-      #          confirm the name). Left null rather than guessed -- see the verify note.
-      scholar: null
+      # _source: the profile itself -- titled "Gabriele Campanella", "Verified email at
+      #          mssm.edu" (Icahn School of Medicine at Mount Sinai, the affiliation on
+      #          this paper), and it lists this article. ORCID 0000-0001-6299-1311
+      #          confirms the name but registers no researcher-urls.
+      scholar: https://scholar.google.com/citations?user=pUiLiRAAAAAJ&hl=en
     last:
       name: Chad Vanderbilt
-      # _source: no Google Scholar profile is registered in the author's own ORCID
-      #          record, 0000-0002-8114-0237 (researcher-urls is empty; the record does
-      #          confirm the name). Left null rather than guessed -- see the verify note.
+      # _source: ORCID 0000-0002-8114-0237 confirms the name but registers no
+      #          researcher-urls, and the candidate Scholar profile found by search
+      #          carries a Mount Sinai badge and does not show this article on its first
+      #          page, so it is not recorded. Left null rather than guessed.
       scholar: null
   model:
     # _source: Results, "Silent trial supports the clinical use of EAGLE"; the authors
@@ -2055,8 +2085,9 @@
     public Prov-GigaPath pathology foundation model, and the whole stack -- encoder,
     gated MIL attention aggregator and linear classifier -- is then trained end to end
     from slide-level EGFR mutation labels alone, with no patch-level annotation. Encoding
-    is sharded across 23 GPUs in 16-bit precision so the encoder can be optimized jointly
-    with the aggregator; 6,624 patches are sampled per slide per step, 20 epochs on 24
+    is sharded across 23 GPUs so the encoder can be optimized jointly
+    with the aggregator, and patch encoding runs in 16-bit float precision to allow
+    larger image batches; 6,624 patches are sampled per slide per step, 20 epochs on 24
     NVIDIA H100-80GB GPUs in about 9.28 h. Inference runs on a single GPU.
   data:
     # _source: abstract -- "we assembled a large international clinical dataset of
@@ -2068,7 +2099,8 @@
       (training, validation, threshold calibration and the prospective silent trial),
       Mount Sinai Health System, Sahlgrenska University Hospital and the Technical
       University of Munich -- plus public TCGA-LUAD for external testing. Every slide is
-      paired with targeted-NGS ground truth for EGFR: MSK-IMPACT at MSKCC, Oncomine
+      paired with NGS ground truth for EGFR -- targeted panels at the four clinical sites,
+      MSK-IMPACT at MSKCC, Oncomine
       Comprehensive v3 at MSHS, Oncomine Focus at SUH, TruSight Oncology 500 at TUM, and
       TCGA whole-exome calls clinically annotated through OncoKB. Slides were digitized
       on Aperio AT2 and GT450, Philips Ultrafast, Pramana and Hamamatsu NanoZoomer S210
@@ -2081,7 +2113,11 @@
     #          "External validation is consistent with internal results" -- "an overall
     #          AUC of 0.870 on 1,484 slides".
     scale:
-      whole_slide_images: 8461
+      # The abstract's clinical dataset (N = 8,461) is MSKCC 7,996 + MSHS 294 + SUH 95 +
+      # TUM 76; it excludes TCGA and the MSHS rescans, which sit inside
+      # external_validation_slides.
+      clinical_whole_slide_images: 8461
+      external_tcga_slides: 519
       training_slides: 5174
       training_patients: 4867
       internal_validation_slides: 1742
@@ -2098,8 +2134,8 @@
   #          months, from May to August 2024."
   tasks_detail: >-
     Binary prediction of EGFR mutation status in lung adenocarcinoma directly from an H&E
-    whole-slide image, against targeted sequencing as ground truth. Validated
-    retrospectively at MSKCC, then externally across three hospitals, five scanner models
+    whole-slide image, against next-generation sequencing as ground truth. Validated
+    retrospectively at MSKCC, then externally across three hospitals, several scanner models
     and TCGA, with stratifications by primary versus metastatic site, tissue area, EGFR
     variant class and slide artifact. Deployed in a 4-month prospective silent trial at
     MSKCC (May-August 2024) in which slides were picked up automatically on an hourly
@@ -2124,7 +2160,12 @@
     #          0.870 (N = 294), 0.877 (N = 241) and 0.884 (N = 259) ... On the SUH cohort
     #          the model achieved an AUC of 0.772 (N = 95), whereas on the TUM cohort the
     #          model achieved an AUC of 0.808 (N = 76). Finally, on the full TCGA cohort,
-    #          the AUC was 0.860 (N = 519)."
+    #          the AUC was 0.860 (N = 519)." That Results sentence names the second
+#          MSHS scanner "Aperio AT2"; Methods, "MSHS", gives the model the note follows,
+#          with the matching N -- "three scanner models: Philips Ultrafast (N = 294),
+#          Aperio GT450 (N = 241) and Pramana (N = 259)" and "rescanned the slides on
+#          the Aperio GT450 and Pramana scanners". The 0.918 is the TCGA artifact
+#          analysis: "the AUC was increased from 0.860 on the overall cohort to 0.918".
     - benchmark: External retrospective validation, three hospitals plus TCGA (1,484 slides)
       metric: AUC
       value: "0.870"
@@ -2175,10 +2216,12 @@
       Do not add the aggregator in, and do not infer a count from the 13.6 GB
       tile_model.pth checkpoint.
     - >-
-      authors.first.scholar and authors.last.scholar left null. Both ORCID records
-      (0000-0001-6299-1311 Campanella, 0000-0002-8114-0237 Vanderbilt) confirm the names
-      but register no researcher-urls at all, so there was no author-controlled link to
-      a Scholar profile to verify against. Not guessed.
+      authors.last.scholar left null. Both ORCID records (0000-0001-6299-1311 Campanella,
+      0000-0002-8114-0237 Vanderbilt) confirm the names but register no researcher-urls.
+      Campanella's profile was verified directly (name, mssm.edu badge, this article
+      listed). The candidate profile for Vanderbilt carries a Mount Sinai badge rather
+      than an MSK one and does not show this article on its first page, so it was left
+      out rather than guessed.
     - >-
       The authors' HuggingFace model card, last modified 2025-05-10 and therefore
       predating publication, quotes a silent-trial AUC of 0.896. The published paper
